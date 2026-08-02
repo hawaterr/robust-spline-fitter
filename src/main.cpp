@@ -6,6 +6,8 @@
 #include <limits>
 #include <numeric>
 #include <random>
+#include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -15,29 +17,24 @@ using rsf::Point2D; // Cpp: so we can do Point2D directly
 
 namespace {
 
-// Ground-truth curve used to generate synthetic test data: a sine wave.
-Point2D trueCurve(double x) {
-    return {x, std::sin(x * 1.5) * 2.0}; // Cpp: {} same as Point2D because the compiler knows what to expect
-}
-
-std::vector<Point2D> generateData(int numInliers, int numOutliers, double noiseStddev,
-                                   double xMin, double xMax, std::mt19937& rng) { // Cpp: std::mt19937 is a type, passed by reference, It produces the raw random bits you feed into distributions to get random numbers.
-    std::vector<Point2D> points;
-    points.reserve(numInliers + numOutliers);
-
-    std::uniform_real_distribution<double> xDist(xMin, xMax);
-    std::normal_distribution<double> noise(0.0, noiseStddev);
-    for (int i = 0; i < numInliers; ++i) {
-        const double x = xDist(rng);
-        Point2D p = trueCurve(x);
-        p.x += noise(rng);
-        p.y += noise(rng);
-        points.push_back(p);
+// Loads points from a CSV with an "x,y" header
+std::vector<Point2D> loadCsv(const std::string& path) {
+    std::ifstream in(path);
+    if (!in) {
+        throw std::runtime_error("could not open " + path);
     }
 
-    std::uniform_real_distribution<double> yDist(-4.0, 4.0);
-    for (int i = 0; i < numOutliers; ++i) {
-        points.push_back({xDist(rng), yDist(rng)});
+    std::vector<Point2D> points;
+    std::string line;
+    std::getline(in, line);  // header
+
+    while (std::getline(in, line)) {
+        if (line.empty()) continue;
+        std::stringstream ss(line);
+        std::string xStr, yStr;
+        std::getline(ss, xStr, ',');
+        std::getline(ss, yStr, ',');
+        points.push_back({std::stod(xStr), std::stod(yStr)});
     }
 
     return points;
@@ -115,23 +112,21 @@ void writeCsv(const std::string& path, const std::vector<Point2D>& points,
 }  // namespace
 
 int main(int argc, char** argv) { // Cpp: argc/argv: argc is the count of command-line arguments; argv is the array of those arguments as C-strings. argv[0] is the program name, argv[1] onward are user-supplied args.
-    const int numInliers = argc > 1 ? std::atoi(argv[1]) : 200; // Cpp: const: marks a variable as immutable after initialization — the compiler errors if you try to modify it later.
-    const int numOutliers = argc > 2 ? std::atoi(argv[2]) : 80;
-    const int numberOfControlPoints = argc > 3 ? std::atoi(argv[3]) : 6;
-    const int tries = argc > 4 ? std::atoi(argv[4]) : 500;
-    const double threshold = argc > 5 ? std::atof(argv[5]) : 0.3;
+    const std::string inputPath = "../data/data.csv"; // Cpp: const: marks a variable as immutable after initialization — the compiler errors if you try to modify it later.
+    const int numberOfControlPoints = 4;
+    const int tries = 10000;
+    const double threshold = 0.2;
     const double tension = 0.5;
-    const int samplesPerSegment = 20;
+    const int samplesPerSegment = 200;
 
-    std::mt19937 rng(42);
+    std::mt19937 rng(41);
 
-    const std::vector<Point2D> data = generateData(numInliers, numOutliers, 0.1, 0.0, 10.0, rng);
+    const std::vector<Point2D> data = loadCsv(inputPath);
     const FitResult best = fitRansac(data, numberOfControlPoints, tries, tension, threshold, samplesPerSegment, rng);
 
-    std::cout << "Data points: " << data.size() << " (" << numInliers << " generated inliers, "
-              << numOutliers << " outliers)\n";
+    std::cout << "Loaded " << data.size() << " points from " << inputPath << "\n";
     std::cout << "Best fit: " << best.inlierCount << " / " << data.size() << " inliers using "
-              << numberOfControlPoints << " control points over " << tries << " tries\numberOfControlPoints";
+              << numberOfControlPoints << " control points over " << tries << " tries\n";
 
     writeCsv("data_points.csv", data, &best.inlierMask);
     writeCsv("spline_curve.csv", best.curve);
