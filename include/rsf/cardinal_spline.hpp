@@ -75,4 +75,48 @@ inline std::vector<Point2D> sampleCardinalSpline(const std::vector<Point2D>& con
     return curve;
 }
 
+// Extends a sampled curve at both ends with straight lines, so that it
+// covers [xMin, xMax]. Each extension continues the slope between the
+// curve's two outermost points at that end. No-op at an end if the curve
+// already reaches past xMin/xMax there. Mirrors regression.py's
+// CardinalSplineRegressor._extend_splines_with_linear_assumption.
+inline std::vector<Point2D> extendSplineLinear(const std::vector<Point2D>& curve,
+                                                double xMin, double xMax,
+                                                int samplesPerExtension = 200) {
+    if (curve.size() < 2) {
+        return curve;
+    }
+
+    const Point2D& first = curve.front();
+    const Point2D& second = curve[1];
+    const Point2D& last = curve.back();
+    const Point2D& beforeLast = curve[curve.size() - 2];
+
+    const double slopeStart = (second.y - first.y) / (second.x - first.x);
+    const double slopeEnd = (last.y - beforeLast.y) / (last.x - beforeLast.x);
+
+    std::vector<Point2D> extended;
+    extended.reserve(curve.size() + 2 * samplesPerExtension);
+
+    if (xMin < first.x) {
+        for (int i = 0; i < samplesPerExtension; ++i) {
+            const double t = static_cast<double>(i) / (samplesPerExtension - 1);
+            const double x = xMin + t * (first.x - xMin);
+            extended.push_back({x, first.y + (x - first.x) * slopeStart});
+        }
+    }
+
+    extended.insert(extended.end(), curve.begin(), curve.end());
+
+    if (xMax > last.x) {
+        for (int i = 0; i < samplesPerExtension; ++i) {
+            const double t = static_cast<double>(i) / (samplesPerExtension - 1);
+            const double x = last.x + t * (xMax - last.x);
+            extended.push_back({x, last.y + (x - last.x) * slopeEnd});
+        }
+    }
+
+    return extended;
+}
+
 }  // namespace rsf
