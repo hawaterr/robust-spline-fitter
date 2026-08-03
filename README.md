@@ -15,3 +15,7 @@ Plan:
 - faster linear splines
 
 Scope: start as a 2 day project, grow if I want to
+
+- maybe automatic finding of number of control points
+- maybe an online feature
+- maybe 

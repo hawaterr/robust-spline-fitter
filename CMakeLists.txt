@@ -8,5 +8,8 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-add_executable(fit_spline src/main.cpp src/cardinal_spline.cpp src/ransac_fitter.cpp) # Learn: add_executable tells CMake which .cpp files to compile into object files and link together into the fit_spline binary.
-target_include_directories(fit_spline PRIVATE include) # Learn: A target is a buildable unit in CMake — an executable or a library
+execute_process(COMMAND python3 -m pybind11 --cmakedir OUTPUT_VARIABLE pybind11_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
+find_package(pybind11 CONFIG REQUIRED)
+
+pybind11_add_module(rsf src/bindings.cpp src/cardinal_spline.cpp src/ransac_fitter.cpp)
+target_include_directories(rsf PRIVATE include)
