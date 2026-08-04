@@ -1,7 +1,9 @@
 #include "rsf/ransac_fitter.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <limits>
 #include <numeric>
 
@@ -92,6 +94,7 @@ bool satisfiesSpacing(const std::vector<Point2D>& sortedControlPoints, double mi
 }
 
 FitResult fitRansac(const std::vector<Point2D>& data, const RansacFitParams& params, std::mt19937& rng) {
+    const auto t0 = std::chrono::steady_clock::now();
     FitResult best;
 
     double dataXMin = data[0].x;
@@ -140,6 +143,10 @@ FitResult fitRansac(const std::vector<Point2D>& data, const RansacFitParams& par
         best.curve = getCardinalSplineCurve(best.controlPoints, params.tension, params.samplesPerSegment);
         best.curve = extendSplineEndsLinearly(best.curve, dataXMin, dataXMax);
     }
+
+    const auto t1 = std::chrono::steady_clock::now();
+    const double elapsedMs = std::chrono::duration<double, std::milli>(t1 - t0).count();
+    std::fprintf(stderr, "[fitRansac] %.1f ms (%d/%d inliers)\n", elapsedMs, best.inlierCount, (int)data.size());
 
     return best;
 }
