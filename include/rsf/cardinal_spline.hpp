@@ -21,6 +21,21 @@ double distance(const Point2D& a, const Point2D& b);
 Point2D evalCardinalSegment(const Point2D& p0, const Point2D& p1, const Point2D& p2, const Point2D& p3, double t,
                              double tension);
 
+// First and second derivatives of evalCardinalSegment with respect to t.
+// Used by closestDistanceSquaredOnSegment for Newton's method.
+Point2D evalCardinalSegmentDerivative(const Point2D& p0, const Point2D& p1, const Point2D& p2, const Point2D& p3,
+                                       double t, double tension);
+Point2D evalCardinalSegmentSecondDerivative(const Point2D& p0, const Point2D& p1, const Point2D& p2,
+                                             const Point2D& p3, double t, double tension);
+
+// Squared distance from `query` to the closest point on one cardinal spline
+// segment, found via Newton's method on d/dt ||P(t)-query||^2 = 0, t in
+// [0, 1]. Falls back to comparing against the segment endpoints (t=0, t=1)
+// to guard against Newton converging to a non-minimum or a degenerate
+// derivative. If outT is non-null, writes the winning t.
+double closestDistanceSquaredOnSegment(const Point2D& p0, const Point2D& p1, const Point2D& p2, const Point2D& p3,
+                                        const Point2D& query, double tension, double* outT = nullptr);
+
 // Samples a full cardinal spline through an ordered list of control points.
 // Phantom points are synthesized at both ends so the curve passes through
 // every control point, including the first and last.

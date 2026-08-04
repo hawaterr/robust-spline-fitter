@@ -24,10 +24,15 @@ struct FitResult {
     int inlierCount = 0;
 };
 
-// Distance from a point to the nearest sample on a curve. Linear scan over
-// every curve sample, so this dominates fitRansac's runtime for large
-// datasets or a finely-sampled curve.
-double distanceToCurve(const Point2D& point, const std::vector<Point2D>& curve);
+// Analytic distance from `point` to the piecewise cardinal spline defined by
+// sortedControlPoints (must be sorted by x, size >= 2), including its linear
+// extensions. Solves closestDistanceSquaredOnSegment for every segment (cheap
+// since numberOfControlPoints is small) plus a closed-form point-to-ray
+// distance at both ends using the boundary segment's analytic tangent,
+// matching extendSplineEndsLinearly's behavior without sampling. This is
+// fitRansac's scoring function, replacing what used to be a linear scan over
+// a densely-sampled curve (the previous dominant cost in fitRansac).
+double distanceToSpline(const Point2D& point, const std::vector<Point2D>& sortedControlPoints, double tension);
 
 // sortedControlPoints must already be sorted by x.
 bool satisfiesSpacing(const std::vector<Point2D>& sortedControlPoints, double minXGap, double maxYGap);

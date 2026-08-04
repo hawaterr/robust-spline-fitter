@@ -7,12 +7,77 @@
 
 namespace rsf {
 
-double distanceToCurve(const Point2D& point, const std::vector<Point2D>& curve) {
-    double best = std::numeric_limits<double>::infinity();
-    for (const auto& c : curve) {
-        best = std::min(best, distance(point, c));
+namespace {
+
+// Mirrors getCardinalSplineCurve's selectControlPoint: phantom points are
+// synthesized by linear reflection at both ends so boundary segments still
+// have a well-defined p0/p3.
+Point2D selectControlPoint(const std::vector<Point2D>& controlPoints, int i) {
+    const int n = static_cast<int>(controlPoints.size());
+    if (i < 0) return controlPoints[0] * 2.0 - controlPoints[1];
+    if (i >= n) return controlPoints[n - 1] * 2.0 - controlPoints[n - 2];
+    return controlPoints[i];
+}
+
+// Closed-form squared distance from `query` to the ray starting at `origin`
+// in direction `dir`, clamped so the projection cannot fall behind `origin`
+// (one-sided extension, matching extendSplineEndsLinearly).
+double rayDistanceSquared(const Point2D& origin, const Point2D& dir, const Point2D& query) {
+    const Point2D originToQuery = query - origin;
+    const double dirDot = dir.x * dir.x + dir.y * dir.y;
+    if (dirDot < 1e-12) {
+        const Point2D diff = query - origin;
+        return diff.x * diff.x + diff.y * diff.y;
     }
-    return best;
+    double proj = (originToQuery.x * dir.x + originToQuery.y * dir.y) / dirDot;
+    proj = std::max(0.0, proj);
+    const Point2D closest = origin + dir * proj;
+    const Point2D diff = closest - query;
+    return diff.x * diff.x + diff.y * diff.y;
+}
+
+}  // namespace
+
+double distanceToSpline(const Point2D& point, const std::vector<Point2D>& sortedControlPoints, double tension) {
+    const int n = static_cast<int>(sortedControlPoints.size());
+
+    // Check every segment rather than just an x-bracketed neighborhood: for
+    // sharply curving splines (e.g. low tension) the curve can fold back far
+    // enough in y that the closest point to a query lands in a segment whose
+    // x-range doesn't contain the query's x at all. numberOfControlPoints is
+    // typically small (default 4), so this stays O(1) in practice.
+    double best = std::numeric_limits<double>::infinity();
+    for (int i = 0; i < n - 1; ++i) {
+        const Point2D p0 = selectControlPoint(sortedControlPoints, i - 1);
+        const Point2D& p1 = sortedControlPoints[i];
+        const Point2D& p2 = sortedControlPoints[i + 1];
+        const Point2D p3 = selectControlPoint(sortedControlPoints, i + 2);
+        const double distSq = closestDistanceSquaredOnSegment(p0, p1, p2, p3, point, tension);
+        best = std::min(best, distSq);
+    }
+
+    // The two linear extensions are always valid candidates, regardless of
+    // whether `point.x` itself falls in their domain: a query inside the
+    // control-point x-range can still have its closest point out on a ray,
+    // if the curve bends away from the query near that end.
+    {
+        const Point2D p0 = selectControlPoint(sortedControlPoints, -1);
+        const Point2D& p1 = sortedControlPoints[0];
+        const Point2D& p2 = sortedControlPoints[1];
+        const Point2D p3 = selectControlPoint(sortedControlPoints, 2);
+        const Point2D dir = evalCardinalSegmentDerivative(p0, p1, p2, p3, 0.0, tension);
+        best = std::min(best, rayDistanceSquared(p1, dir * -1.0, point));
+    }
+    {
+        const Point2D p0 = selectControlPoint(sortedControlPoints, n - 3);
+        const Point2D& p1 = sortedControlPoints[n - 2];
+        const Point2D& p2 = sortedControlPoints[n - 1];
+        const Point2D p3 = selectControlPoint(sortedControlPoints, n);
+        const Point2D dir = evalCardinalSegmentDerivative(p0, p1, p2, p3, 1.0, tension);
+        best = std::min(best, rayDistanceSquared(p2, dir, point));
+    }
+
+    return std::sqrt(best);
 }
 
 bool satisfiesSpacing(const std::vector<Point2D>& sortedControlPoints, double minXGap, double maxYGap) {
@@ -56,23 +121,24 @@ FitResult fitRansac(const std::vector<Point2D>& data, const RansacFitParams& par
             continue;
         }
 
-        std::vector<Point2D> curve = getCardinalSplineCurve(controlPoints, params.tension, params.samplesPerSegment);
-        curve = extendSplineEndsLinearly(curve, dataXMin, dataXMax);
-
         std::vector<bool> inlierMask(data.size());
         int inlierCount = 0;
         for (size_t i = 0; i < data.size(); ++i) {
-            const bool isInlier = distanceToCurve(data[i], curve) < params.threshold;
+            const bool isInlier = distanceToSpline(data[i], controlPoints, params.tension) < params.threshold;
             inlierMask[i] = isInlier;
             if (isInlier) ++inlierCount;
         }
 
         if (inlierCount > best.inlierCount) {
             best.controlPoints = std::move(controlPoints);
-            best.curve = std::move(curve);
             best.inlierMask = std::move(inlierMask);
             best.inlierCount = inlierCount;
         }
+    }
+
+    if (best.inlierCount > 0) {
+        best.curve = getCardinalSplineCurve(best.controlPoints, params.tension, params.samplesPerSegment);
+        best.curve = extendSplineEndsLinearly(best.curve, dataXMin, dataXMax);
     }
 
     return best;
