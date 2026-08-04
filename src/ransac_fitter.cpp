@@ -43,11 +43,7 @@ double rayDistanceSquared(const Point2D& origin, const Point2D& dir, const Point
 double distanceToSpline(const Point2D& point, const std::vector<Point2D>& sortedControlPoints, double tension) {
     const int n = static_cast<int>(sortedControlPoints.size());
 
-    // Check every segment rather than just an x-bracketed neighborhood: for
-    // sharply curving splines (e.g. low tension) the curve can fold back far
-    // enough in y that the closest point to a query lands in a segment whose
-    // x-range doesn't contain the query's x at all. numberOfControlPoints is
-    // typically small (default 4), so this stays O(1) in practice.
+    // Check every segment
     double best = std::numeric_limits<double>::infinity();
     for (int i = 0; i < n - 1; ++i) {
         const Point2D p0 = selectControlPoint(sortedControlPoints, i - 1);
@@ -58,10 +54,7 @@ double distanceToSpline(const Point2D& point, const std::vector<Point2D>& sorted
         best = std::min(best, distSq);
     }
 
-    // The two linear extensions are always valid candidates, regardless of
-    // whether `point.x` itself falls in their domain: a query inside the
-    // control-point x-range can still have its closest point out on a ray,
-    // if the curve bends away from the query near that end.
+    // The two linear extension segments
     {
         const Point2D p0 = selectControlPoint(sortedControlPoints, -1);
         const Point2D& p1 = sortedControlPoints[0];
@@ -80,6 +73,28 @@ double distanceToSpline(const Point2D& point, const std::vector<Point2D>& sorted
     }
 
     return std::sqrt(best);
+}
+
+double verticalDistanceToSpline(const Point2D& point, const std::vector<Point2D>& curveSamples) {
+    
+    // std::upper_bound does a binary search assuming curveSamples is sorted by x. It returns an iterator to the first sample whose x is strictly greater than point.x.
+    const auto it = std::upper_bound(curveSamples.begin(), curveSamples.end(), point.x,
+                                      [](double x, const Point2D& p) { return x < p.x; }); 
+
+    // no need to interpolate
+    if (it == curveSamples.begin()) {
+        return std::abs(curveSamples.front().y - point.y);
+    }
+    if (it == curveSamples.end()) {
+        return std::abs(curveSamples.back().y - point.y);
+    }
+
+    // interpolates the y value between the 2 discretized curve points
+    const Point2D& after = *it;
+    const Point2D& before = *(it - 1);
+    const double span = after.x - before.x;
+    const double curveY = (span < 1e-12) ? before.y : before.y + (after.y - before.y) * (point.x - before.x) / span;
+    return std::abs(curveY - point.y);
 }
 
 bool satisfiesSpacing(const std::vector<Point2D>& sortedControlPoints, double minXGap, double maxYGap) {
@@ -124,10 +139,19 @@ FitResult fitRansac(const std::vector<Point2D>& data, const RansacFitParams& par
             continue;
         }
 
+        std::vector<Point2D> candidateCurve;
+        if (params.distanceMetric == DistanceMetric::Vertical) {
+            candidateCurve = getCardinalSplineCurve(controlPoints, params.tension, params.samplesPerSegment);
+            candidateCurve = extendSplineEndsLinearly(candidateCurve, dataXMin, dataXMax);
+        }
+
         std::vector<bool> inlierMask(data.size());
         int inlierCount = 0;
         for (size_t i = 0; i < data.size(); ++i) {
-            const bool isInlier = distanceToSpline(data[i], controlPoints, params.tension) < params.threshold;
+            const double dist = (params.distanceMetric == DistanceMetric::Vertical)
+                                     ? verticalDistanceToSpline(data[i], candidateCurve)
+                                     : distanceToSpline(data[i], controlPoints, params.tension);
+            const bool isInlier = dist < params.threshold;
             inlierMask[i] = isInlier;
             if (isInlier) ++inlierCount;
         }

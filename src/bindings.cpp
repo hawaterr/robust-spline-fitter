@@ -56,6 +56,10 @@ PyFitResult fit_ransac(const std::vector<double>& x, const std::vector<double>& 
 PYBIND11_MODULE(rsf, m) { // so we say import rsf in python
     m.doc() = "Robust cardinal spline fitting via RANSAC";
 
+    py::enum_<rsf::DistanceMetric>(m, "DistanceMetric")
+        .value("Perpendicular", rsf::DistanceMetric::Perpendicular)
+        .value("Vertical", rsf::DistanceMetric::Vertical);
+
     py::class_<rsf::RansacFitParams>(m, "RansacFitParams") // binding input
         .def(py::init<>()) // can do in python params = rsf.RansacFitParams()
         .def_readwrite("numberOfControlPoints", &rsf::RansacFitParams::numberOfControlPoints) // can do params.numberOfControlPoints = self.control_points
@@ -64,7 +68,8 @@ PYBIND11_MODULE(rsf, m) { // so we say import rsf in python
         .def_readwrite("threshold", &rsf::RansacFitParams::threshold)
         .def_readwrite("samplesPerSegment", &rsf::RansacFitParams::samplesPerSegment)
         .def_readwrite("minControlPointXGap", &rsf::RansacFitParams::minControlPointXGap)
-        .def_readwrite("maxControlPointYGap", &rsf::RansacFitParams::maxControlPointYGap);
+        .def_readwrite("maxControlPointYGap", &rsf::RansacFitParams::maxControlPointYGap)
+        .def_readwrite("distanceMetric", &rsf::RansacFitParams::distanceMetric);
 
     py::class_<PyFitResult>(m, "FitResult") // binding output
         .def_readonly("control_points", &PyFitResult::control_points) // can do control_points_ = result.control_points

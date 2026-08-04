@@ -19,6 +19,7 @@ def main():
         samples_per_segment=200,
         min_control_point_x_gap=1.0,
         max_control_point_y_gap=2.0,
+        distance_metric="perpendicular"
     )
     model.fit(x, y)
 

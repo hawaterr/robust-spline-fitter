@@ -7,6 +7,21 @@
 
 namespace rsf {
 
+// How distanceToSpline (and hence inlier scoring) measures a point's
+// distance to the candidate curve.
+enum class DistanceMetric {
+    // Analytic perpendicular distance to the nearest point on the curve,
+    // found via Newton's method (closestDistanceSquaredOnSegment). Correct
+    // for curves that fold back in x, but costs a handful of Newton solves
+    // per point.
+    Perpendicular,
+    // Vertical lookup: compares the point's y to the curve's y at the same
+    // x, via linear interpolation over a densely sampled curve. Cheaper and
+    // simpler, but only meaningful when the curve is a function of x (no
+    // folding back), since it ignores any curve point at a different x.
+    Vertical,
+};
+
 struct RansacFitParams {
     int numberOfControlPoints = 4;
     int tries = 500;
@@ -15,6 +30,7 @@ struct RansacFitParams {
     int samplesPerSegment = 200;
     double minControlPointXGap = 1.0;
     double maxControlPointYGap = 2.0;
+    DistanceMetric distanceMetric = DistanceMetric::Perpendicular;
 };
 
 struct FitResult {
@@ -33,6 +49,15 @@ struct FitResult {
 // fitRansac's scoring function, replacing what used to be a linear scan over
 // a densely-sampled curve (the previous dominant cost in fitRansac).
 double distanceToSpline(const Point2D& point, const std::vector<Point2D>& sortedControlPoints, double tension);
+
+// Vertical distance from `point` to the piecewise cardinal spline: the
+// absolute difference between point.y and the curve's y at point.x, found by
+// linearly interpolating over `curveSamples` (must be sorted by x, e.g. from
+// getCardinalSplineCurve + extendSplineEndsLinearly). Points outside the
+// sampled curve's x-range are clamped to the nearest end sample. Cheaper
+// than distanceToSpline but only meaningful when the curve is a function of
+// x.
+double verticalDistanceToSpline(const Point2D& point, const std::vector<Point2D>& curveSamples);
 
 // sortedControlPoints must already be sorted by x.
 bool satisfiesSpacing(const std::vector<Point2D>& sortedControlPoints, double minXGap, double maxYGap);

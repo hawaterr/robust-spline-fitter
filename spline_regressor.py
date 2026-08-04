@@ -45,6 +45,13 @@ class CardinalSplineRegressor:
         Reject any candidate where two adjacent (x-sorted) control points
         differ in y by more than this. Avoids wild swings between control
         points that happen to land close together in x.
+    distance_metric : {"perpendicular", "vertical"}, default="perpendicular"
+        How a data point's distance to a candidate curve is measured for
+        inlier scoring. "perpendicular" is the analytic nearest-point
+        distance (via Newton's method) and handles curves that fold back in
+        x. "vertical" is a cheaper lookup that compares the point's y to the
+        curve's y at the same x (linear interpolation over the sampled
+        curve); only meaningful when the curve is a function of x.
     seed : int, default=42
         Seed for the random control-point sampling, for reproducible fits.
 
@@ -83,6 +90,7 @@ class CardinalSplineRegressor:
         samples_per_segment: int = 200,
         min_control_point_x_gap: float = 1.0,
         max_control_point_y_gap: float = 2.0,
+        distance_metric: str = "perpendicular",
         seed: int = 42,
     ):
         self.control_points = control_points
@@ -92,6 +100,7 @@ class CardinalSplineRegressor:
         self.samples_per_segment = samples_per_segment
         self.min_control_point_x_gap = min_control_point_x_gap
         self.max_control_point_y_gap = max_control_point_y_gap
+        self.distance_metric = distance_metric
         self.seed = seed
 
         self.control_points_: List[Tuple[float, float]] = []
@@ -111,6 +120,15 @@ class CardinalSplineRegressor:
         -------
         self, so calls can be chained, e.g. `model = CardinalSplineRegressor().fit(x, y)`.
         """
+        metric_by_name = {
+            "perpendicular": rsf.DistanceMetric.Perpendicular,
+            "vertical": rsf.DistanceMetric.Vertical,
+        }
+        if self.distance_metric not in metric_by_name:
+            raise ValueError(
+                f"distance_metric must be one of {sorted(metric_by_name)}, got {self.distance_metric!r}"
+            )
+
         params = rsf.RansacFitParams()
         params.numberOfControlPoints = self.control_points
         params.tries = self.tries
@@ -119,6 +137,7 @@ class CardinalSplineRegressor:
         params.samplesPerSegment = self.samples_per_segment
         params.minControlPointXGap = self.min_control_point_x_gap
         params.maxControlPointYGap = self.max_control_point_y_gap
+        params.distanceMetric = metric_by_name[self.distance_metric]
 
         result = rsf.fit_ransac(list(x), list(y), params, seed=self.seed)
 
