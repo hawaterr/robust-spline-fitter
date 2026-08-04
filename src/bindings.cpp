@@ -53,12 +53,12 @@ PyFitResult fit_ransac(const std::vector<double>& x, const std::vector<double>& 
 
 }  // namespace
 
-PYBIND11_MODULE(rsf, m) {
+PYBIND11_MODULE(rsf, m) { // so we say import rsf in python
     m.doc() = "Robust cardinal spline fitting via RANSAC";
 
-    py::class_<rsf::RansacFitParams>(m, "RansacFitParams")
-        .def(py::init<>())
-        .def_readwrite("numberOfControlPoints", &rsf::RansacFitParams::numberOfControlPoints)
+    py::class_<rsf::RansacFitParams>(m, "RansacFitParams") // binding input
+        .def(py::init<>()) // can do in python params = rsf.RansacFitParams()
+        .def_readwrite("numberOfControlPoints", &rsf::RansacFitParams::numberOfControlPoints) // can do params.numberOfControlPoints = self.control_points
         .def_readwrite("tries", &rsf::RansacFitParams::tries)
         .def_readwrite("tension", &rsf::RansacFitParams::tension)
         .def_readwrite("threshold", &rsf::RansacFitParams::threshold)
@@ -66,8 +66,8 @@ PYBIND11_MODULE(rsf, m) {
         .def_readwrite("minControlPointXGap", &rsf::RansacFitParams::minControlPointXGap)
         .def_readwrite("maxControlPointYGap", &rsf::RansacFitParams::maxControlPointYGap);
 
-    py::class_<PyFitResult>(m, "FitResult")
-        .def_readonly("control_points", &PyFitResult::control_points)
+    py::class_<PyFitResult>(m, "FitResult") // binding output
+        .def_readonly("control_points", &PyFitResult::control_points) // can do control_points_ = result.control_points
         .def_readonly("curve", &PyFitResult::curve)
         .def_readonly("inlier_mask", &PyFitResult::inlier_mask)
         .def_readonly("inlier_count", &PyFitResult::inlier_count);
