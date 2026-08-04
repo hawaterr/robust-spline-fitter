@@ -25,7 +25,7 @@ Point2D evalCardinalSegment(const Point2D& p0, const Point2D& p1, const Point2D&
 // Phantom points are synthesized at both ends so the curve passes through
 // every control point, including the first and last.
 // Requires at least 2 control points.
-std::vector<Point2D> sampleCardinalSpline(const std::vector<Point2D>& controlPoints, double tension,
+std::vector<Point2D> getCardinalSplineCurve(const std::vector<Point2D>& controlPoints, double tension,
                                            int samplesPerSegment);
 
 // Extends a sampled curve at both ends with straight lines, so that it
@@ -33,7 +33,7 @@ std::vector<Point2D> sampleCardinalSpline(const std::vector<Point2D>& controlPoi
 // curve's two outermost points at that end. No-op at an end if the curve
 // already reaches past xMin/xMax there. Mirrors regression.py's
 // CardinalSplineRegressor._extend_splines_with_linear_assumption.
-std::vector<Point2D> extendSplineLinear(const std::vector<Point2D>& curve, double xMin, double xMax,
+std::vector<Point2D> extendSplineEndsLinearly(const std::vector<Point2D>& curve, double xMin, double xMax,
                                          int samplesPerExtension = 200);
 
 }  // namespace rsf

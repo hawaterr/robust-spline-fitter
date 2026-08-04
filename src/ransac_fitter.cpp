@@ -56,8 +56,8 @@ FitResult fitRansac(const std::vector<Point2D>& data, const RansacFitParams& par
             continue;
         }
 
-        std::vector<Point2D> curve = sampleCardinalSpline(controlPoints, params.tension, params.samplesPerSegment);
-        curve = extendSplineLinear(curve, dataXMin, dataXMax);
+        std::vector<Point2D> curve = getCardinalSplineCurve(controlPoints, params.tension, params.samplesPerSegment);
+        curve = extendSplineEndsLinearly(curve, dataXMin, dataXMax);
 
         std::vector<bool> inlierMask(data.size());
         int inlierCount = 0;

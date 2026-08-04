@@ -26,7 +26,7 @@ Point2D evalCardinalSegment(const Point2D& p0, const Point2D& p1, const Point2D&
     return p1 * h00 + m1 * h10 + p2 * h01 + m2 * h11;
 }
 
-std::vector<Point2D> sampleCardinalSpline(const std::vector<Point2D>& controlPoints, double tension,
+std::vector<Point2D> getCardinalSplineCurve(const std::vector<Point2D>& controlPoints, double tension,
                                            int samplesPerSegment) {
     std::vector<Point2D> curve;
     const int n = static_cast<int>(controlPoints.size()); // Cpp: static_cast<int>(x) converts x to an int, .size is size_t an unsigned integer, but since we do operations like n-2, we make sure no compiler errors or warnings
@@ -55,7 +55,7 @@ std::vector<Point2D> sampleCardinalSpline(const std::vector<Point2D>& controlPoi
     return curve;
 }
 
-std::vector<Point2D> extendSplineLinear(const std::vector<Point2D>& curve, double xMin, double xMax,
+std::vector<Point2D> extendSplineEndsLinearly(const std::vector<Point2D>& curve, double xMin, double xMax,
                                          int samplesPerExtension) {
     if (curve.size() < 2) {
         return curve;
