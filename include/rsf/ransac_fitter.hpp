@@ -20,6 +20,12 @@ enum class DistanceMetric {
     // simpler, but only meaningful when the curve is a function of x (no
     // folding back), since it ignores any curve point at a different x.
     Vertical,
+    // Brute-force nearest neighbor over a densely sampled curve: minimum
+    // Euclidean distance from the point to any sample. Handles folding
+    // curves like Perpendicular, but its accuracy is bounded by
+    // samplesPerSegment rather than exact, and it's O(curve samples) per
+    // point instead of O(control points).
+    Sampled,
 };
 
 struct RansacFitParams {
@@ -58,6 +64,13 @@ double distanceToSpline(const Point2D& point, const std::vector<Point2D>& sorted
 // than distanceToSpline but only meaningful when the curve is a function of
 // x.
 double verticalDistanceToSpline(const Point2D& point, const std::vector<Point2D>& curveSamples);
+
+// Brute-force nearest-sample distance from `point` to the piecewise cardinal
+// spline: the minimum Euclidean distance to any point in `curveSamples`
+// (e.g. from getCardinalSplineCurve + extendSplineEndsLinearly). Simplest
+// and most direct metric, but only as accurate as the curve's sampling
+// density, and slower than distanceToSpline since it scans every sample.
+double sampledDistanceToSpline(const Point2D& point, const std::vector<Point2D>& curveSamples);
 
 // sortedControlPoints must already be sorted by x.
 bool satisfiesSpacing(const std::vector<Point2D>& sortedControlPoints, double minXGap, double maxYGap);

@@ -45,13 +45,17 @@ class CardinalSplineRegressor:
         Reject any candidate where two adjacent (x-sorted) control points
         differ in y by more than this. Avoids wild swings between control
         points that happen to land close together in x.
-    distance_metric : {"perpendicular", "vertical"}, default="perpendicular"
-        How a data point's distance to a candidate curve is measured for
-        inlier scoring. "perpendicular" is the analytic nearest-point
-        distance (via Newton's method) and handles curves that fold back in
-        x. "vertical" is a cheaper lookup that compares the point's y to the
-        curve's y at the same x (linear interpolation over the sampled
-        curve); only meaningful when the curve is a function of x.
+    distance_metric : {"perpendicular", "vertical", "sampled"}, default="perpendicular"
+        Inlier calculation method: how a data point's distance to a
+        candidate curve is measured for inlier scoring. "perpendicular" is
+        the analytic nearest-point distance (via Newton's method) and
+        handles curves that fold back in x. "vertical" is a cheaper lookup
+        that compares the point's y to the curve's y at the same x (linear
+        interpolation over the sampled curve); only meaningful when the
+        curve is a function of x. "sampled" is a brute-force nearest
+        neighbor search over the densely sampled curve; handles folding
+        curves like "perpendicular" but its accuracy is bounded by
+        samples_per_segment and it's slower.
     seed : int, default=42
         Seed for the random control-point sampling, for reproducible fits.
 
@@ -123,6 +127,7 @@ class CardinalSplineRegressor:
         metric_by_name = {
             "perpendicular": rsf.DistanceMetric.Perpendicular,
             "vertical": rsf.DistanceMetric.Vertical,
+            "sampled": rsf.DistanceMetric.Sampled,
         }
         if self.distance_metric not in metric_by_name:
             raise ValueError(

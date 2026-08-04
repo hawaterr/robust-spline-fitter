@@ -97,6 +97,14 @@ double verticalDistanceToSpline(const Point2D& point, const std::vector<Point2D>
     return std::abs(curveY - point.y);
 }
 
+double sampledDistanceToSpline(const Point2D& point, const std::vector<Point2D>& curveSamples) {
+    double best = std::numeric_limits<double>::infinity();
+    for (const auto& sample : curveSamples) {
+        best = std::min(best, distance(point, sample));
+    }
+    return best;
+}
+
 bool satisfiesSpacing(const std::vector<Point2D>& sortedControlPoints, double minXGap, double maxYGap) {
     for (size_t i = 0; i + 1 < sortedControlPoints.size(); ++i) {
         const double xGap = sortedControlPoints[i + 1].x - sortedControlPoints[i].x;
@@ -140,7 +148,7 @@ FitResult fitRansac(const std::vector<Point2D>& data, const RansacFitParams& par
         }
 
         std::vector<Point2D> candidateCurve;
-        if (params.distanceMetric == DistanceMetric::Vertical) {
+        if (params.distanceMetric == DistanceMetric::Vertical || params.distanceMetric == DistanceMetric::Sampled) {
             candidateCurve = getCardinalSplineCurve(controlPoints, params.tension, params.samplesPerSegment);
             candidateCurve = extendSplineEndsLinearly(candidateCurve, dataXMin, dataXMax);
         }
@@ -148,9 +156,18 @@ FitResult fitRansac(const std::vector<Point2D>& data, const RansacFitParams& par
         std::vector<bool> inlierMask(data.size());
         int inlierCount = 0;
         for (size_t i = 0; i < data.size(); ++i) {
-            const double dist = (params.distanceMetric == DistanceMetric::Vertical)
-                                     ? verticalDistanceToSpline(data[i], candidateCurve)
-                                     : distanceToSpline(data[i], controlPoints, params.tension);
+            double dist;
+            switch (params.distanceMetric) {
+                case DistanceMetric::Vertical:
+                    dist = verticalDistanceToSpline(data[i], candidateCurve);
+                    break;
+                case DistanceMetric::Sampled:
+                    dist = sampledDistanceToSpline(data[i], candidateCurve);
+                    break;
+                default:
+                    dist = distanceToSpline(data[i], controlPoints, params.tension);
+                    break;
+            }
             const bool isInlier = dist < params.threshold;
             inlierMask[i] = isInlier;
             if (isInlier) ++inlierCount;

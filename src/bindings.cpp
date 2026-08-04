@@ -58,7 +58,8 @@ PYBIND11_MODULE(rsf, m) { // so we say import rsf in python
 
     py::enum_<rsf::DistanceMetric>(m, "DistanceMetric")
         .value("Perpendicular", rsf::DistanceMetric::Perpendicular)
-        .value("Vertical", rsf::DistanceMetric::Vertical);
+        .value("Vertical", rsf::DistanceMetric::Vertical)
+        .value("Sampled", rsf::DistanceMetric::Sampled);
 
     py::class_<rsf::RansacFitParams>(m, "RansacFitParams") // binding input
         .def(py::init<>()) // can do in python params = rsf.RansacFitParams()
