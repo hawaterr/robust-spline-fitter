@@ -1,4 +1,3 @@
-Custom Non-Commercial, No-AI License
 Copyright (c) 2026 Aly Hawater
 
 Permission is granted to any person to use, copy, and modify this software for
@@ -7,8 +6,7 @@ subject to the following conditions:
 
 1. Attribution required.
    Any use or redistribution of this software, or any derivative work based on
-   it, must clearly credit the original author ("[Your Name] — [project
-   name/link]") and state whether the software was modified.
+   it, must clearly credit the original author ("Aly Hawater — https://github.com/hawaterr/robust-spline-fitter/tree/main") and state whether the software was modified.
 
 2. No commercial use.
    This software may not be used, in whole or in part, by any commercial
