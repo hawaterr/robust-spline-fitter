@@ -12,8 +12,8 @@ double dot(const Point2D& a, const Point2D& b) { return a.x * b.x + a.y * b.y; }
 
 // Runs Newton's method from a single starting t, returns the converged
 // (or best-effort) t. Clamped to [0,1] each step.
-double singleNewtonRun(const Point2D& p0, const Point2D& p1, const Point2D& p2, const Point2D& p3,
-                     const Point2D& query, double tension, double tStart) {
+double singleNewtonRun(const Point2D& p0, const Point2D& p1, const Point2D& p2, const Point2D& p3, const Point2D& query,
+                       double tension, double tStart) {
     constexpr int maxIters = 8;
     constexpr double tol = 1e-6;
 
@@ -70,8 +70,9 @@ double rayDistanceSquared(const Point2D& origin, const Point2D& dir, const Point
 
 }  // namespace
 
-double getClosestSquaredDistanceToSegmentUsingNewton(const Point2D& p0, const Point2D& p1, const Point2D& p2, const Point2D& p3,
-                                        const Point2D& query, double tension, double* outT) {
+double getClosestSquaredDistanceToSegmentUsingNewton(const Point2D& p0, const Point2D& p1, const Point2D& p2,
+                                                     const Point2D& p3, const Point2D& query, double tension,
+                                                     double* outT) {
     double proportionalGuess = 0.5;
     if (p2.x != p1.x) {
         proportionalGuess = (query.x - p1.x) / (p2.x - p1.x);
@@ -102,7 +103,8 @@ double getClosestSquaredDistanceToSegmentUsingNewton(const Point2D& p0, const Po
     return bestDistSq;
 }
 
-double getClosestDistanceToSplineUsingNewton(const Point2D& point, const std::vector<Point2D>& sortedControlPoints, double tension) {
+double getClosestDistanceToSplineUsingNewton(const Point2D& point, const std::vector<Point2D>& sortedControlPoints,
+                                             double tension) {
     const int n = static_cast<int>(sortedControlPoints.size());
 
     // Check every segment

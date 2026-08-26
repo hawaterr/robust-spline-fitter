@@ -11,8 +11,9 @@ namespace rsf {
 // [0, 1]. Falls back to comparing against the segment endpoints (t=0, t=1)
 // to guard against Newton converging to a non-minimum or a degenerate
 // derivative. If outT is non-null, writes the winning t.
-double getClosestSquaredDistanceToSegmentUsingNewton(const Point2D& p0, const Point2D& p1, const Point2D& p2, const Point2D& p3,
-                                        const Point2D& query, double tension, double* outT = nullptr);
+double getClosestSquaredDistanceToSegmentUsingNewton(const Point2D& p0, const Point2D& p1, const Point2D& p2,
+                                                     const Point2D& p3, const Point2D& query, double tension,
+                                                     double* outT = nullptr);
 
 // Analytic distance from `point` to the piecewise cardinal spline defined by
 // sortedControlPoints (must be sorted by x, size >= 2), including its linear
@@ -22,6 +23,7 @@ double getClosestSquaredDistanceToSegmentUsingNewton(const Point2D& p0, const Po
 // matching extendSplineEndsLinearly's behavior without sampling. This is
 // fitRansac's scoring function, replacing what used to be a linear scan over
 // a densely-sampled curve (the previous dominant cost in fitRansac).
-double getClosestDistanceToSplineUsingNewton(const Point2D& point, const std::vector<Point2D>& sortedControlPoints, double tension);
+double getClosestDistanceToSplineUsingNewton(const Point2D& point, const std::vector<Point2D>& sortedControlPoints,
+                                             double tension);
 
 }  // namespace rsf

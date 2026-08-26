@@ -28,8 +28,8 @@ std::vector<std::pair<double, double>> toPairs(const std::vector<rsf::Point2D>& 
     return pairs;
 }
 
-PyFitResult fit_ransac(const std::vector<double>& x, const std::vector<double>& y,
-                        const rsf::RansacFitParams& params, unsigned int seed) {
+PyFitResult fit_ransac(const std::vector<double>& x, const std::vector<double>& y, const rsf::RansacFitParams& params,
+                       unsigned int seed) {
     if (x.size() != y.size()) {
         throw std::invalid_argument("x and y must have the same length");
     }
@@ -53,7 +53,7 @@ PyFitResult fit_ransac(const std::vector<double>& x, const std::vector<double>& 
 
 }  // namespace
 
-PYBIND11_MODULE(rsf, m) { // so we say import rsf in python
+PYBIND11_MODULE(rsf, m) {  // so we say import rsf in python
     m.doc() = "Robust cardinal spline fitting via RANSAC";
 
     py::enum_<rsf::DistanceMetric>(m, "DistanceMetric")
@@ -61,9 +61,11 @@ PYBIND11_MODULE(rsf, m) { // so we say import rsf in python
         .value("Vertical", rsf::DistanceMetric::Vertical)
         .value("Sampled", rsf::DistanceMetric::Sampled);
 
-    py::class_<rsf::RansacFitParams>(m, "RansacFitParams") // binding input
-        .def(py::init<>()) // can do in python params = rsf.RansacFitParams()
-        .def_readwrite("numberOfControlPoints", &rsf::RansacFitParams::numberOfControlPoints) // can do params.numberOfControlPoints = self.control_points
+    py::class_<rsf::RansacFitParams>(m, "RansacFitParams")  // binding input
+        .def(py::init<>())                                  // can do in python params = rsf.RansacFitParams()
+        .def_readwrite(
+            "numberOfControlPoints",
+            &rsf::RansacFitParams::numberOfControlPoints)  // can do params.numberOfControlPoints = self.control_points
         .def_readwrite("tries", &rsf::RansacFitParams::tries)
         .def_readwrite("tension", &rsf::RansacFitParams::tension)
         .def_readwrite("threshold", &rsf::RansacFitParams::threshold)
@@ -72,8 +74,8 @@ PYBIND11_MODULE(rsf, m) { // so we say import rsf in python
         .def_readwrite("maxControlPointYGap", &rsf::RansacFitParams::maxControlPointYGap)
         .def_readwrite("distanceMetric", &rsf::RansacFitParams::distanceMetric);
 
-    py::class_<PyFitResult>(m, "FitResult") // binding output
-        .def_readonly("control_points", &PyFitResult::control_points) // can do control_points_ = result.control_points
+    py::class_<PyFitResult>(m, "FitResult")                            // binding output
+        .def_readonly("control_points", &PyFitResult::control_points)  // can do control_points_ = result.control_points
         .def_readonly("curve", &PyFitResult::curve)
         .def_readonly("inlier_mask", &PyFitResult::inlier_mask)
         .def_readonly("inlier_count", &PyFitResult::inlier_count);

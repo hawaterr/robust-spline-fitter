@@ -7,10 +7,10 @@
 namespace rsf {
 
 double verticalDistanceToSpline(const Point2D& point, const std::vector<Point2D>& curveSamples) {
-
-    // std::upper_bound does a binary search assuming curveSamples is sorted by x. It returns an iterator to the first sample whose x is strictly greater than point.x.
+    // std::upper_bound does a binary search assuming curveSamples is sorted by x. It returns an iterator to the first
+    // sample whose x is strictly greater than point.x.
     const auto it = std::upper_bound(curveSamples.begin(), curveSamples.end(), point.x,
-                                      [](double x, const Point2D& p) { return x < p.x; });
+                                     [](double x, const Point2D& p) { return x < p.x; });
 
     // no need to interpolate
     if (it == curveSamples.begin()) {

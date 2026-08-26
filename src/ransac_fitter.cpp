@@ -29,7 +29,7 @@ std::pair<double, double> dataXRange(const std::vector<Point2D>& data) {
 // Fisher-Yates on a copy) and returns the corresponding data points sorted by
 // x, ready to serve as spline control points.
 std::vector<Point2D> sampleControlPoints(const std::vector<Point2D>& data, std::vector<int> indices,
-                                          int numberOfControlPoints, std::mt19937& rng) {
+                                         int numberOfControlPoints, std::mt19937& rng) {
     std::shuffle(indices.begin(), indices.end(), rng);
     indices.resize(numberOfControlPoints);
     // Order control points along the curve by x. This assumes the curve is a
@@ -47,7 +47,7 @@ std::vector<Point2D> sampleControlPoints(const std::vector<Point2D>& data, std::
 // Vertical/Sampled metrics. Perpendicular scores directly off control points
 // and never calls this, so it's skipped there to avoid the sampling cost.
 std::vector<Point2D> buildCandidateCurve(const std::vector<Point2D>& controlPoints, const RansacFitParams& params,
-                                          double dataXMin, double dataXMax) {
+                                         double dataXMin, double dataXMax) {
     if (params.distanceMetric != DistanceMetric::Vertical && params.distanceMetric != DistanceMetric::Sampled) {
         return {};
     }
@@ -58,9 +58,9 @@ std::vector<Point2D> buildCandidateCurve(const std::vector<Point2D>& controlPoin
 // Scores one candidate against all of `data` using the configured distance
 // metric, returning a per-point inlier mask plus the total inlier count.
 std::pair<std::vector<bool>, int> scoreCandidate(const std::vector<Point2D>& data,
-                                                   const std::vector<Point2D>& controlPoints,
-                                                   const std::vector<Point2D>& candidateCurve,
-                                                   const RansacFitParams& params) {
+                                                 const std::vector<Point2D>& controlPoints,
+                                                 const std::vector<Point2D>& candidateCurve,
+                                                 const RansacFitParams& params) {
     std::vector<bool> inlierMask(data.size());
     int inlierCount = 0;
     for (size_t i = 0; i < data.size(); ++i) {
@@ -103,7 +103,7 @@ FitResult fitRansac(const std::vector<Point2D>& data, const RansacFitParams& par
     const auto [dataXMin, dataXMax] = dataXRange(data);
 
     std::vector<int> indices(data.size());
-    std::iota(indices.begin(), indices.end(), 0); // Cpp: fills indices with [0,1,2,...], .begin() returns an iterator
+    std::iota(indices.begin(), indices.end(), 0);  // Cpp: fills indices with [0,1,2,...], .begin() returns an iterator
 
     for (int attempt = 0; attempt < params.tries; ++attempt) {
         std::vector<Point2D> controlPoints = sampleControlPoints(data, indices, params.numberOfControlPoints, rng);
