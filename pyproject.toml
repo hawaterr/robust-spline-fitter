@@ -1,0 +1,15 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "pybind11"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "robust-spline-fitter"
+version = "0.1.0"
+description = "Robustly fits a cardinal spline to noisy 2D data using RANSAC."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { file = "LICENSE.txt" }
+dependencies = ["numpy"]
+
+[tool.scikit-build]
+wheel.packages = []

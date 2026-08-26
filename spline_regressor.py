@@ -1,12 +1,16 @@
 """Python-friendly, sklearn-style wrapper around the compiled rsf extension."""
-import sys
-from pathlib import Path
 from typing import List, Sequence, Tuple
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).parent / "build"))
-import rsf
+try:
+    import rsf
+except ImportError as e:
+    raise ImportError(
+        "The compiled 'rsf' extension was not found. If you're working from "
+        "a source checkout (not `pip install`-ed), build it first: "
+        "cmake -S . -B build && cmake --build build."
+    ) from e
 
 
 class CardinalSplineRegressor:
