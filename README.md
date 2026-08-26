@@ -1,26 +1,43 @@
 # robust-spline-fitter
 
-The goal of this repo is to provide a python library written in C++ (for efficiency) that fit different spline types to data points. For now start with 2d data, maybe later extend to 3D or N dimensional. 
+A Python library, implemented in C++ for speed, that robustly fits a cardinal spline to noisy 2D `(x, y)` data using RANSAC. 2D only for now — see [ROADMAP.md](ROADMAP.md) for what's planned.
 
-Plan:
+## Install
 
+From source:
 
-- have python example scripts
-- refactor to better file and folder structure
-- liscence: non commercial use only, may be used in research, no AI training, comes as is no garentee or liability...
-- documentation: show off in readem with some graphs, more data ...
-- have it pip installable
+```
+pip install .
+```
 
+This builds the C++ extension via CMake and installs the `robust_spline_fitter` package. You'll need a C++17 compiler and CMake 3.16+ available.
 
-- more satisfies spacing constraints
-- extend to 3/N dimensional data?
+## Quick start
 
-- automatic finding of number of control points
-- extend with other spline types: faster linear splines, ..
+```python
+from robust_spline_fitter import CardinalSplineRegressor
 
-- optimize: cache polynomials and evaluate t t**2 ,... with coeaff pre calculated?
-- another solver to min distance to spline: Ktrees, binary search, x difference, 
+model = CardinalSplineRegressor(control_points=4, tries=50000)
+model.fit(x, y)  # x, y: sequences of floats
 
-- win by best inliers or best score, both options
-- an online feature
+y_pred = model.predict(x_query)
+print(model.inlier_count_, "/", len(x), "inliers")
+```
 
+See [examples/example.py](examples/example.py) for a full runnable example, including plotting the fit.
+
+## How it works
+
+Candidate splines are built from randomly sampled control points (RANSAC), and each candidate is scored by how many of the input points fall within `threshold` distance of the curve. The best-scoring candidate is kept. Because the search runs in compiled C++, it stays fast even with a large number of `tries`.
+
+## Key parameters
+
+- `tension` — cardinal spline tension in `[0, 1]`. `0` gives a Catmull-Rom spline (loose, rounded corners); `1` flattens the tangents.
+- `threshold` — max distance from the curve for a point to count as an inlier.
+- `distance_metric` — `"perpendicular"` (default, analytic nearest-point distance via Newton's method, handles curves that fold back in x), `"vertical"` (cheaper y-at-same-x lookup, only valid when the curve is a function of x), or `"sampled"` (brute-force nearest-sample search).
+
+Full parameter docs are in the `CardinalSplineRegressor` docstring.
+
+## License
+
+Non-commercial use only (personal, educational, research) — no AI/ML training use, attribution required, no warranty. See [LICENSE.txt](LICENSE.txt) for full terms. For commercial licensing, contact ali.hawater@gmail.com.
