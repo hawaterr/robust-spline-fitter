@@ -1,6 +1,5 @@
 # Roadmap
 
-- documentation: show off in README with some graphs, more data ...
 
 - test curves that are not simply y = f(x)
 
@@ -15,3 +14,6 @@
 
 - win by best inliers or best score, both options
 - an online feature
+
+
+- fit till last inlier or fit till last point in the range options

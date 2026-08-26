@@ -33,9 +33,9 @@ Candidate splines are built from randomly sampled control points (RANSAC), and e
 
 ## Key parameters
 
-- `tension` — cardinal spline tension in `[0, 1]`. `0` gives a Catmull-Rom spline (loose, rounded corners); `1` flattens the tangents.
-- `threshold` — max distance from the curve for a point to count as an inlier.
-- `distance_metric` — `"perpendicular"` (default, analytic nearest-point distance via Newton's method, handles curves that fold back in x), `"vertical"` (cheaper y-at-same-x lookup, only valid when the curve is a function of x), or `"sampled"` (brute-force nearest-sample search).
+- `tension`: cardinal spline tension in `[0, 1]`. `0` gives a Catmull-Rom spline (loose, rounded corners); `1` flattens the tangents.
+- `threshold`: max distance from the curve for a point to count as an inlier.
+- `control points`: number of control points of the spline. Too many can overfit, and too little underfits.
 
 Full parameter docs are in the `CardinalSplineRegressor` docstring.
 
