@@ -11,7 +11,7 @@ namespace rsf {
 // linearly interpolating over `curveSamples` (must be sorted by x, e.g. from
 // getCardinalSplineCurve + extendSplineEndsLinearly). Points outside the
 // sampled curve's x-range are clamped to the nearest end sample. Cheaper
-// than distanceToSpline but only meaningful when the curve is a function of
+// than getClosestDistanceToSplineUsingNewton but only meaningful when the curve is a function of
 // x.
 double verticalDistanceToSpline(const Point2D& point, const std::vector<Point2D>& curveSamples);
 
@@ -19,7 +19,7 @@ double verticalDistanceToSpline(const Point2D& point, const std::vector<Point2D>
 // spline: the minimum Euclidean distance to any point in `curveSamples`
 // (e.g. from getCardinalSplineCurve + extendSplineEndsLinearly). Simplest
 // and most direct metric, but only as accurate as the curve's sampling
-// density, and slower than distanceToSpline since it scans every sample.
+// density, and slower than getClosestDistanceToSplineUsingNewton since it scans every sample.
 double sampledDistanceToSpline(const Point2D& point, const std::vector<Point2D>& curveSamples);
 
 }  // namespace rsf

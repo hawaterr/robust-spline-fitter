@@ -7,11 +7,11 @@
 
 namespace rsf {
 
-// How distanceToSpline (and hence inlier scoring) measures a point's
+// How getClosestDistanceToSplineUsingNewton (and hence inlier scoring) measures a point's
 // distance to the candidate curve.
 enum class DistanceMetric {
     // Analytic perpendicular distance to the nearest point on the curve,
-    // found via Newton's method (closestDistanceSquaredOnSegment). Correct
+    // found via Newton's method (getClosestSquaredDistanceToSegmentUsingNewton). Correct
     // for curves that fold back in x, but costs a handful of Newton solves
     // per point.
     Perpendicular,

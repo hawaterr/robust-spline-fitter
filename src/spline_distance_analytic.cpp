@@ -12,7 +12,7 @@ double dot(const Point2D& a, const Point2D& b) { return a.x * b.x + a.y * b.y; }
 
 // Runs Newton's method from a single starting t, returns the converged
 // (or best-effort) t. Clamped to [0,1] each step.
-double newtonRefine(const Point2D& p0, const Point2D& p1, const Point2D& p2, const Point2D& p3,
+double singleNewtonRun(const Point2D& p0, const Point2D& p1, const Point2D& p2, const Point2D& p3,
                      const Point2D& query, double tension, double tStart) {
     constexpr int maxIters = 8;
     constexpr double tol = 1e-6;
@@ -70,7 +70,7 @@ double rayDistanceSquared(const Point2D& origin, const Point2D& dir, const Point
 
 }  // namespace
 
-double closestDistanceSquaredOnSegment(const Point2D& p0, const Point2D& p1, const Point2D& p2, const Point2D& p3,
+double getClosestSquaredDistanceToSegmentUsingNewton(const Point2D& p0, const Point2D& p1, const Point2D& p2, const Point2D& p3,
                                         const Point2D& query, double tension, double* outT) {
     double proportionalGuess = 0.5;
     if (p2.x != p1.x) {
@@ -86,7 +86,7 @@ double closestDistanceSquaredOnSegment(const Point2D& p0, const Point2D& p1, con
     double bestDistSq = std::numeric_limits<double>::infinity();
     double bestT = 0.0;
     for (double seed : {0.0, 0.25, 0.5, 0.75, 1.0, proportionalGuess}) {
-        const double t = newtonRefine(p0, p1, p2, p3, query, tension, seed);
+        const double t = singleNewtonRun(p0, p1, p2, p3, query, tension, seed);
         const Point2D P = evalCardinalSegment(p0, p1, p2, p3, t, tension);
         const Point2D diff = P - query;
         const double distSq = dot(diff, diff);
@@ -102,7 +102,7 @@ double closestDistanceSquaredOnSegment(const Point2D& p0, const Point2D& p1, con
     return bestDistSq;
 }
 
-double distanceToSpline(const Point2D& point, const std::vector<Point2D>& sortedControlPoints, double tension) {
+double getClosestDistanceToSplineUsingNewton(const Point2D& point, const std::vector<Point2D>& sortedControlPoints, double tension) {
     const int n = static_cast<int>(sortedControlPoints.size());
 
     // Check every segment
@@ -112,7 +112,7 @@ double distanceToSpline(const Point2D& point, const std::vector<Point2D>& sorted
         const Point2D& p1 = sortedControlPoints[i];
         const Point2D& p2 = sortedControlPoints[i + 1];
         const Point2D p3 = selectControlPoint(sortedControlPoints, i + 2);
-        const double distSq = closestDistanceSquaredOnSegment(p0, p1, p2, p3, point, tension);
+        const double distSq = getClosestSquaredDistanceToSegmentUsingNewton(p0, p1, p2, p3, point, tension);
         best = std::min(best, distSq);
     }
 

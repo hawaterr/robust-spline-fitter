@@ -73,7 +73,7 @@ std::pair<std::vector<bool>, int> scoreCandidate(const std::vector<Point2D>& dat
                 dist = sampledDistanceToSpline(data[i], candidateCurve);
                 break;
             default:
-                dist = distanceToSpline(data[i], controlPoints, params.tension);
+                dist = getClosestDistanceToSplineUsingNewton(data[i], controlPoints, params.tension);
                 break;
         }
         const bool isInlier = dist < params.threshold;

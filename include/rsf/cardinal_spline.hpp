@@ -22,7 +22,7 @@ Point2D evalCardinalSegment(const Point2D& p0, const Point2D& p1, const Point2D&
                              double tension);
 
 // First and second derivatives of evalCardinalSegment with respect to t.
-// Used by closestDistanceSquaredOnSegment for Newton's method.
+// Used by getClosestSquaredDistanceToSegmentUsingNewton for Newton's method.
 Point2D evalCardinalSegmentDerivative(const Point2D& p0, const Point2D& p1, const Point2D& p2, const Point2D& p3,
                                        double t, double tension);
 Point2D evalCardinalSegmentSecondDerivative(const Point2D& p0, const Point2D& p1, const Point2D& p2,
