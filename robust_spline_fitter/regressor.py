@@ -4,7 +4,7 @@ from typing import List, Sequence, Tuple
 import numpy as np
 
 try:
-    import rsf
+    from . import rsf
 except ImportError as e:
     raise ImportError(
         "The compiled 'rsf' extension was not found. If you're working from "

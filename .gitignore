@@ -2,3 +2,7 @@ build/
 *.csv
 __pycache__/
 data/
+dist/
+*.egg-info/
+wheelhouse/
+robust_spline_fitter/rsf.cpython-*.so

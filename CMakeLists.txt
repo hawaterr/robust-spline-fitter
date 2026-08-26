@@ -15,5 +15,4 @@ pybind11_add_module(rsf src/bindings.cpp src/cardinal_spline.cpp src/spline_dist
                      src/spline_distance_sampled.cpp src/ransac_fitter.cpp)
 target_include_directories(rsf PRIVATE include)
 
-install(TARGETS rsf DESTINATION .)
-install(FILES spline_regressor.py DESTINATION .)
+install(TARGETS rsf DESTINATION robust_spline_fitter)

@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """Fit a robust cardinal spline to data/data.csv using CardinalSplineRegressor."""
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from spline_regressor import CardinalSplineRegressor
+from robust_spline_fitter import CardinalSplineRegressor
+
+DATA_CSV = Path(__file__).resolve().parent.parent / "data" / "data.csv"
 
 
 def main():
-    df = pd.read_csv("data/data.csv")
+    df = pd.read_csv(DATA_CSV)
     x, y = df["x"].tolist(), df["y"].tolist()
 
     model = CardinalSplineRegressor(
@@ -23,7 +27,7 @@ def main():
     )
     model.fit(x, y)
 
-    print(f"Loaded {len(df)} points from data/data.csv")
+    print(f"Loaded {len(df)} points from {DATA_CSV}")
     print(f"Best fit: {model.inlier_count_} / {len(df)} inliers using "
           f"{model.control_points} control points over {model.tries} tries")
 
