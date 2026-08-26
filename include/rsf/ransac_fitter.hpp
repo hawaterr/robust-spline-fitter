@@ -46,32 +46,6 @@ struct FitResult {
     int inlierCount = 0;
 };
 
-// Analytic distance from `point` to the piecewise cardinal spline defined by
-// sortedControlPoints (must be sorted by x, size >= 2), including its linear
-// extensions. Solves closestDistanceSquaredOnSegment for every segment (cheap
-// since numberOfControlPoints is small) plus a closed-form point-to-ray
-// distance at both ends using the boundary segment's analytic tangent,
-// matching extendSplineEndsLinearly's behavior without sampling. This is
-// fitRansac's scoring function, replacing what used to be a linear scan over
-// a densely-sampled curve (the previous dominant cost in fitRansac).
-double distanceToSpline(const Point2D& point, const std::vector<Point2D>& sortedControlPoints, double tension);
-
-// Vertical distance from `point` to the piecewise cardinal spline: the
-// absolute difference between point.y and the curve's y at point.x, found by
-// linearly interpolating over `curveSamples` (must be sorted by x, e.g. from
-// getCardinalSplineCurve + extendSplineEndsLinearly). Points outside the
-// sampled curve's x-range are clamped to the nearest end sample. Cheaper
-// than distanceToSpline but only meaningful when the curve is a function of
-// x.
-double verticalDistanceToSpline(const Point2D& point, const std::vector<Point2D>& curveSamples);
-
-// Brute-force nearest-sample distance from `point` to the piecewise cardinal
-// spline: the minimum Euclidean distance to any point in `curveSamples`
-// (e.g. from getCardinalSplineCurve + extendSplineEndsLinearly). Simplest
-// and most direct metric, but only as accurate as the curve's sampling
-// density, and slower than distanceToSpline since it scans every sample.
-double sampledDistanceToSpline(const Point2D& point, const std::vector<Point2D>& curveSamples);
-
 // sortedControlPoints must already be sorted by x.
 bool satisfiesSpacing(const std::vector<Point2D>& sortedControlPoints, double minXGap, double maxYGap);
 

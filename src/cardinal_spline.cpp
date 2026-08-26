@@ -1,8 +1,6 @@
 #include "rsf/cardinal_spline.hpp"
 
-#include <algorithm>
 #include <cmath>
-#include <limits>
 
 namespace rsf {
 
@@ -55,77 +53,6 @@ Point2D evalCardinalSegmentSecondDerivative(const Point2D& p0, const Point2D& p1
     const double h11dd = 6 * t - 2;
 
     return p1 * h00dd + m1 * h10dd + p2 * h01dd + m2 * h11dd;
-}
-
-namespace { // modern way of doing static, so this function is not acce
-double dot(const Point2D& a, const Point2D& b) { return a.x * b.x + a.y * b.y; }
-}  // namespace
-
-namespace {
-
-// Runs Newton's method from a single starting t, returns the converged
-// (or best-effort) t. Clamped to [0,1] each step.
-double newtonRefine(const Point2D& p0, const Point2D& p1, const Point2D& p2, const Point2D& p3,
-                     const Point2D& query, double tension, double tStart) {
-    constexpr int maxIters = 8;
-    constexpr double tol = 1e-6;
-
-    double t = tStart;
-    for (int iter = 0; iter < maxIters; ++iter) {
-        const Point2D P = evalCardinalSegment(p0, p1, p2, p3, t, tension);
-        const Point2D Pd = evalCardinalSegmentDerivative(p0, p1, p2, p3, t, tension);
-        const Point2D Pdd = evalCardinalSegmentSecondDerivative(p0, p1, p2, p3, t, tension);
-        const Point2D diff = P - query;
-
-        const double numerator = dot(diff, Pd);
-        const double denominator = dot(Pd, Pd) + dot(diff, Pdd);
-        if (std::abs(denominator) < 1e-12) {
-            break;
-        }
-
-        double tNext = t - numerator / denominator;
-        tNext = std::max(0.0, std::min(1.0, tNext));
-        const bool converged = std::abs(tNext - t) < tol;
-        t = tNext;
-        if (converged) {
-            break;
-        }
-    }
-    return t;
-}
-
-}  // namespace
-
-double closestDistanceSquaredOnSegment(const Point2D& p0, const Point2D& p1, const Point2D& p2, const Point2D& p3,
-                                        const Point2D& query, double tension, double* outT) {
-    double proportionalGuess = 0.5;
-    if (p2.x != p1.x) {
-        proportionalGuess = (query.x - p1.x) / (p2.x - p1.x);
-        proportionalGuess = std::max(0.0, std::min(1.0, proportionalGuess));
-    }
-
-    // A single Newton seed can converge to the wrong local minimum or get
-    // stuck near a boundary when the initial guess is far from the true
-    // closest point (e.g. a query far off the segment's x-range). Running
-    // from several seeds and keeping the global best is cheap (a handful of
-    // Newton solves, still O(1) per query) and much more robust.
-    double bestDistSq = std::numeric_limits<double>::infinity();
-    double bestT = 0.0;
-    for (double seed : {0.0, 0.25, 0.5, 0.75, 1.0, proportionalGuess}) {
-        const double t = newtonRefine(p0, p1, p2, p3, query, tension, seed);
-        const Point2D P = evalCardinalSegment(p0, p1, p2, p3, t, tension);
-        const Point2D diff = P - query;
-        const double distSq = dot(diff, diff);
-        if (distSq < bestDistSq) {
-            bestDistSq = distSq;
-            bestT = t;
-        }
-    }
-
-    if (outT != nullptr) {
-        *outT = bestT;
-    }
-    return bestDistSq;
 }
 
 // control points come in already in the right order the user wants
