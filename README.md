@@ -40,4 +40,4 @@ Full parameter docs are in the `CardinalSplineRegressor` docstring.
 
 ## License
 
-Non-commercial use only (personal, educational, research) — no AI/ML training use, attribution required, no warranty. See [LICENSE.txt](LICENSE.txt) for full terms. For commercial licensing, contact ali.hawater@gmail.com.
+Non-commercial use only (personal, educational, research). This software may not be used for ML model training or evaluation.
