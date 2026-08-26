@@ -1,0 +1,35 @@
+Custom Non-Commercial, No-AI License
+Copyright (c) 2026 Aly Hawater
+
+Permission is granted to any person to use, copy, and modify this software for
+non-commercial purposes only, including personal, educational, and research use,
+subject to the following conditions:
+
+1. Attribution required.
+   Any use or redistribution of this software, or any derivative work based on
+   it, must clearly credit the original author ("[Your Name] — [project
+   name/link]") and state whether the software was modified.
+
+2. No commercial use.
+   This software may not be used, in whole or in part, by any commercial
+   entity, or for any commercial purpose, including but not limited to
+   selling, sublicensing, offering as a paid service, or use within a
+   for-profit product or organization, without prior written permission from
+   the author.
+
+3. No AI/ML use.
+   This software, and any data or output derived from it, may not be used to
+   train, fine-tune, evaluate, or otherwise develop any machine learning or
+   artificial intelligence model or system.
+
+4. No warranty.
+   This software is provided "as is", without warranty of any kind, express
+   or implied. The author shall not be liable for any claim, damages, or
+   other liability arising from the use of this software.
+
+5. Modifications.
+   If you modify and redistribute this software, you must clearly state that
+   changes were made and may not represent modified versions as the
+   original.
+
+For commercial licensing inquiries, contact: ali.hawater@gmail.com
