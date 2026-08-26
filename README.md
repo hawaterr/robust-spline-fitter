@@ -1,7 +1,6 @@
 # robust-spline-fitter
 
-A Python library, implemented in C++ for speed, that robustly fits a cardinal spline to noisy 2D `(x, y)` data using RANSAC. 2D only for now — see [ROADMAP.md](ROADMAP.md) for what's planned.
-
+A Python library, implemented in C++ for speed, that robustly fits a cardinal spline to noisy 2D `(x, y)` data using RANSAC. Only 2D data is supported for now.
 ## Install
 
 From source:
@@ -21,10 +20,9 @@ model = CardinalSplineRegressor(control_points=4, tries=50000)
 model.fit(x, y)  # x, y: sequences of floats
 
 y_pred = model.predict(x_query)
-print(model.inlier_count_, "/", len(x), "inliers")
 ```
 
-See [examples/example.py](examples/example.py) for a full runnable example, including plotting the fit.
+See [examples/example.py](examples/example.py) for a full example.
 
 ## How it works
 
