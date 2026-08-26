@@ -38,6 +38,78 @@ double rayDistanceSquared(const Point2D& origin, const Point2D& dir, const Point
     return diff.x * diff.x + diff.y * diff.y;
 }
 
+// Min/max x over data, used to extend the candidate curve's linear ends to
+// cover the full data range regardless of where its control points landed.
+std::pair<double, double> dataXRange(const std::vector<Point2D>& data) {
+    double xMin = data[0].x;
+    double xMax = data[0].x;
+    for (const auto& p : data) {
+        xMin = std::min(xMin, p.x);
+        xMax = std::max(xMax, p.x);
+    }
+    return {xMin, xMax};
+}
+
+
+
+// Builds the densely-sampled, linearly-extended curve needed by the
+// Vertical/Sampled metrics. Perpendicular scores directly off control points
+// and never calls this, so it's skipped there to avoid the sampling cost.
+std::vector<Point2D> buildCandidateCurve(const std::vector<Point2D>& controlPoints, const RansacFitParams& params,
+                                          double dataXMin, double dataXMax) {
+    if (params.distanceMetric != DistanceMetric::Vertical && params.distanceMetric != DistanceMetric::Sampled) {
+        return {};
+    }
+    std::vector<Point2D> curve = getCardinalSplineCurve(controlPoints, params.tension, params.samplesPerSegment);
+    return extendSplineEndsLinearly(curve, dataXMin, dataXMax);
+}
+
+// Scores one candidate against all of `data` using the configured distance
+// metric, returning a per-point inlier mask plus the total inlier count.
+std::pair<std::vector<bool>, int> scoreCandidate(const std::vector<Point2D>& data,
+                                                   const std::vector<Point2D>& controlPoints,
+                                                   const std::vector<Point2D>& candidateCurve,
+                                                   const RansacFitParams& params) {
+    std::vector<bool> inlierMask(data.size());
+    int inlierCount = 0;
+    for (size_t i = 0; i < data.size(); ++i) {
+        double dist;
+        switch (params.distanceMetric) {
+            case DistanceMetric::Vertical:
+                dist = verticalDistanceToSpline(data[i], candidateCurve);
+                break;
+            case DistanceMetric::Sampled:
+                dist = sampledDistanceToSpline(data[i], candidateCurve);
+                break;
+            default:
+                dist = distanceToSpline(data[i], controlPoints, params.tension);
+                break;
+        }
+        const bool isInlier = dist < params.threshold;
+        inlierMask[i] = isInlier;
+        if (isInlier) ++inlierCount;
+    }
+    return {std::move(inlierMask), inlierCount};
+}
+
+// Draws numberOfControlPoints distinct indices from `indices` (via partial
+// Fisher-Yates on a copy) and returns the corresponding data points sorted by
+// x, ready to serve as spline control points.
+std::vector<Point2D> sampleControlPoints(const std::vector<Point2D>& data, std::vector<int> indices,
+                                          int numberOfControlPoints, std::mt19937& rng) {
+    std::shuffle(indices.begin(), indices.end(), rng);
+    indices.resize(numberOfControlPoints);
+    // Order control points along the curve by x. This assumes the curve is a
+    // function of x (single y per x), which holds for this synthetic test data
+    // but won't hold in general (e.g. closed loops or non-monotonic curves).
+    std::sort(indices.begin(), indices.end(), [&](int a, int b) { return data[a].x < data[b].x; });
+
+    std::vector<Point2D> controlPoints;
+    controlPoints.reserve(numberOfControlPoints);
+    for (int idx : indices) controlPoints.push_back(data[idx]);
+    return controlPoints;
+}
+
 }  // namespace
 
 double distanceToSpline(const Point2D& point, const std::vector<Point2D>& sortedControlPoints, double tension) {
@@ -116,62 +188,26 @@ bool satisfiesSpacing(const std::vector<Point2D>& sortedControlPoints, double mi
     return true;
 }
 
+
+
 FitResult fitRansac(const std::vector<Point2D>& data, const RansacFitParams& params, std::mt19937& rng) {
     const auto t0 = std::chrono::steady_clock::now();
     FitResult best;
 
-    double dataXMin = data[0].x;
-    double dataXMax = data[0].x;
-    for (const auto& p : data) {
-        dataXMin = std::min(dataXMin, p.x);
-        dataXMax = std::max(dataXMax, p.x);
-    }
+    const auto [dataXMin, dataXMax] = dataXRange(data);
 
     std::vector<int> indices(data.size());
     std::iota(indices.begin(), indices.end(), 0); // Cpp: fills indices with [0,1,2,...], .begin() returns an iterator
 
     for (int attempt = 0; attempt < params.tries; ++attempt) {
-        std::vector<int> sample = indices;
-        std::shuffle(sample.begin(), sample.end(), rng);
-        sample.resize(params.numberOfControlPoints);
-        // Order control points along the curve by x. This assumes the curve is a
-        // function of x (single y per x), which holds for this synthetic test data
-        // but won't hold in general (e.g. closed loops or non-monotonic curves).
-        std::sort(sample.begin(), sample.end(), [&](int a, int b) { return data[a].x < data[b].x; });
-
-        std::vector<Point2D> controlPoints;
-        controlPoints.reserve(params.numberOfControlPoints);
-        for (int idx : sample) controlPoints.push_back(data[idx]);
+        std::vector<Point2D> controlPoints = sampleControlPoints(data, indices, params.numberOfControlPoints, rng);
 
         if (!satisfiesSpacing(controlPoints, params.minControlPointXGap, params.maxControlPointYGap)) {
             continue;
         }
 
-        std::vector<Point2D> candidateCurve;
-        if (params.distanceMetric == DistanceMetric::Vertical || params.distanceMetric == DistanceMetric::Sampled) {
-            candidateCurve = getCardinalSplineCurve(controlPoints, params.tension, params.samplesPerSegment);
-            candidateCurve = extendSplineEndsLinearly(candidateCurve, dataXMin, dataXMax);
-        }
-
-        std::vector<bool> inlierMask(data.size());
-        int inlierCount = 0;
-        for (size_t i = 0; i < data.size(); ++i) {
-            double dist;
-            switch (params.distanceMetric) {
-                case DistanceMetric::Vertical:
-                    dist = verticalDistanceToSpline(data[i], candidateCurve);
-                    break;
-                case DistanceMetric::Sampled:
-                    dist = sampledDistanceToSpline(data[i], candidateCurve);
-                    break;
-                default:
-                    dist = distanceToSpline(data[i], controlPoints, params.tension);
-                    break;
-            }
-            const bool isInlier = dist < params.threshold;
-            inlierMask[i] = isInlier;
-            if (isInlier) ++inlierCount;
-        }
+        const std::vector<Point2D> candidateCurve = buildCandidateCurve(controlPoints, params, dataXMin, dataXMax);
+        auto [inlierMask, inlierCount] = scoreCandidate(data, controlPoints, candidateCurve, params);
 
         if (inlierCount > best.inlierCount) {
             best.controlPoints = std::move(controlPoints);

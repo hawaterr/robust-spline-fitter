@@ -128,6 +128,7 @@ double closestDistanceSquaredOnSegment(const Point2D& p0, const Point2D& p1, con
     return bestDistSq;
 }
 
+// control points come in already in the right order the user wants
 std::vector<Point2D> getCardinalSplineCurve(const std::vector<Point2D>& controlPoints, double tension,
                                            int samplesPerSegment) {
     std::vector<Point2D> curve;
