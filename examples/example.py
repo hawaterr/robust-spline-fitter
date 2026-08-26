@@ -18,8 +18,8 @@ def main():
     model = CardinalSplineRegressor(
         control_points=4,
         tries=50000,
-        threshold=0.2,
-        tension=0.5,
+        threshold=0.18,
+        tension=0.4,
         samples_per_segment=200,
         min_control_point_x_gap=1.0,
         max_control_point_y_gap=2.0,
@@ -46,12 +46,20 @@ def main():
     ctrl_x = [p[0] for p in model.control_points_]
     ctrl_y = [p[1] for p in model.control_points_]
 
-    plt.scatter(out_x, out_y, c="lightgray", s=12, label="outliers")
-    plt.scatter(in_x, in_y, c="tab:blue", s=12, label="inliers")
-    plt.plot(curve_x, curve_y, c="tab:red", linewidth=2, label="fitted spline")
-    plt.scatter(ctrl_x, ctrl_y, c="black", marker="x", s=60, label="control points")
-    plt.legend()
-    plt.title("Robust cardinal spline fit")
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.grid(True, alpha=0.3)
+
+    ax.scatter(out_x, out_y, c="lightgray", s=10, alpha=0.6, label="outliers")
+    ax.scatter(in_x, in_y, c="tab:blue", s=14, label="inliers")
+    ax.plot(curve_x, curve_y, c="tab:red", linewidth=2.5, label="fitted spline", zorder=3)
+    ax.scatter(ctrl_x, ctrl_y, c="black", marker="x", s=70, linewidth=2, label="control points", zorder=4)
+
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.legend()
+    ax.set_title("Robust cardinal spline fit")
+    fig.tight_layout()
     plt.show()
 
 
