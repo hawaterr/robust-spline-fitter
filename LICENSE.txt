@@ -29,5 +29,3 @@ subject to the following conditions:
    If you modify and redistribute this software, you must clearly state that
    changes were made and may not represent modified versions as the
    original.
-
-For commercial licensing inquiries, contact: ali.hawater@gmail.com

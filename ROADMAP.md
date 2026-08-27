@@ -1,19 +1,39 @@
 # Roadmap
 
-
-- test curves that are not simply y = f(x)
-
+PRIORITY I
+- add developer note on run.sh
+- documentation: add robust to systematic errors
+- explain the solvers in more details: newton, ..
+- test curves that are not simply y = f(x), so one x has multiple y, more vertical, .. Fix any problems there
+- unit tests
+- parallelize
+- Local refinement pass after RANSAC: once you have inliers, do a least-squares polish of control points (currently it's pure random search — a final gradient/Nelder-Mead refit on the winning inlier set would likely improve fit quality for free).  win by best inliers or best score, both options, maybe not needed since there is a refinement pass after inlier pass.
 - more satisfies-spacing constraints
-- extend to 3/N dimensional data?
-
 - automatic finding of number of control points
-- extend with other spline types: faster linear splines, ...
+- A warm_start/init_control_points param to seed RANSAC near a known-good guess instead of pure random sampling — useful for refitting similar data repeatedly (e.g. video frame sequences). online fitting, so we keep getting new points
+- fewer points than control points error
+- extend to 3/N dimensional data? -> new branch
 
-- optimize: cache polynomials and evaluate t, t**2, ... with coefficients pre-calculated?
+
+WOULD BE NICE
+- CI
+- Confidence/uncertainty band on the fit (e.g., bootstrap resampling of inliers) — nice differentiator vs. plain scipy splines.
+- Weighted fitting: accept per-point weights/uncertainties 
+- Multi-curve fitting: sequential RANSAC (fit, remove inliers, refit on remainder) to handle data that's a mixture of multiple curves/clusters, not just one curve + noise.
+- Closed/periodic curves: support fitting a loop (first and last control points connect) — relevant if users have orbit-like or cyclic data, and cardinal splines support this naturally.
+- Verbose/diagnostic mode: return not just the winning candidate but score-vs-tries history, useful for tuning tries and threshold without guessing.
+- benchmark against sklear
+- fit till last inlier or fit till last point in the range options
+
+
+
+LOW PRIORITY
+- optimize: cache polynomials and evaluate t, t**2, ... with coefficients pre-calculated? gain might be very small
 - another solver to min distance to spline: k-d trees, binary search, x difference, y difference solved analytically not with samples
 
-- win by best inliers or best score, both options
-- an online feature
 
 
-- fit till last inlier or fit till last point in the range options
+
+LONG TERM GOAL?
+- extend with other spline types: faster linear splines, MINVO basis, bezier, ..
+- Can turn this to a general spline fitting library, with all kinds of splines. Robust or not. 
