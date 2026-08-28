@@ -39,6 +39,16 @@ Candidate splines are built from randomly sampled control points (RANSAC), and e
 
 Full parameter docs are in the `CardinalSplineRegressor` docstring.
 
+## Development
+
+
+```
+pip install pybind11
+./run.sh
+```
+
+`./run.sh` configures, builds, and runs [examples/example.py](examples/example.py) in one step. Rerun it after any change under `src/` or `include/` .
+
 ## License
 
 Non-commercial use only (personal, educational, non-profit research). This software may not be used for ML model training or evaluation.

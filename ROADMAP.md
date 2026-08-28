@@ -1,8 +1,6 @@
 # Roadmap
 
 PRIORITY I
-- add developer note on run.sh
-- explain the solvers in more details: newton, ..
 - test curves that are not simply y = f(x), so one x has multiple y, more vertical, .. Fix any problems there
 - unit tests
 - parallelize
