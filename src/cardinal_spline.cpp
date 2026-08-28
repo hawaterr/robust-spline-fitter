@@ -4,6 +4,13 @@
 
 namespace rsf {
 
+Point2D selectControlPoint(const std::vector<Point2D>& controlPoints, int i) {
+    const int n = static_cast<int>(controlPoints.size());
+    if (i < 0) return controlPoints[0] * 2.0 - controlPoints[1]; // mirrors the control point at the ends
+    if (i >= n) return controlPoints[n - 1] * 2.0 - controlPoints[n - 2];
+    return controlPoints[i];
+}
+
 Point2D evalCardinalSegment(const Point2D& p0, const Point2D& p1, const Point2D& p2, const Point2D& p3, double t,
                             double tension) {
     const double s = 1.0 - tension;
@@ -61,21 +68,12 @@ std::vector<Point2D> getCardinalSplineCurve(const std::vector<Point2D>& controlP
         return curve;
     }
 
-    auto selectControlPoint =
-        [&](int i) -> Point2D {  // Cpp: selectControlPoint is a variable storing a function, the value is the output of
-                                 // lambda function (which does ), [] is called capture, and it is what the function can
-                                 // see from outside, [&] means it can see everything by reference
-        if (i < 0) return controlPoints[0] * 2.0 - controlPoints[1];
-        if (i >= n) return controlPoints[n - 1] * 2.0 - controlPoints[n - 2];
-        return controlPoints[i];
-    };
-
     curve.reserve((n - 1) * samplesPerSegment + 1);  // Cpp: no need to keep pushing and reallocating
     for (int i = 0; i < n - 1; ++i) {
-        const Point2D& p0 = selectControlPoint(i - 1);
-        const Point2D& p1 = selectControlPoint(i);
-        const Point2D& p2 = selectControlPoint(i + 1);
-        const Point2D& p3 = selectControlPoint(i + 2);
+        const Point2D p0 = selectControlPoint(controlPoints, i - 1);
+        const Point2D p1 = selectControlPoint(controlPoints, i);
+        const Point2D p2 = selectControlPoint(controlPoints, i + 1);
+        const Point2D p3 = selectControlPoint(controlPoints, i + 2);
         const int lastSample =
             (i == n - 2) ? samplesPerSegment
                          : samplesPerSegment - 1;  // Cpp: ternary expression condition ? value_if_true : value_if_false

@@ -6,6 +6,11 @@
 
 namespace rsf {
 
+// Returns controlPoints[i], synthesizing a phantom point by linear reflection
+// when i falls before the first or after the last control point, so boundary
+// segments still have a well-defined p0/p3.
+Point2D selectControlPoint(const std::vector<Point2D>& controlPoints, int i);
+
 // Evaluates one segment of a cardinal spline between p1 and p2, using the
 // neighboring control points p0 and p3 to derive tangents. t in [0, 1].
 // tension in [0, 1]: 0 gives a Catmull-Rom spline, 1 flattens tangents to zero.

@@ -41,16 +41,6 @@ double singleNewtonRun(const Point2D& p0, const Point2D& p1, const Point2D& p2, 
     return t;
 }
 
-// Mirrors getCardinalSplineCurve's selectControlPoint: phantom points are
-// synthesized by linear reflection at both ends so boundary segments still
-// have a well-defined p0/p3.
-Point2D selectControlPoint(const std::vector<Point2D>& controlPoints, int i) {
-    const int n = static_cast<int>(controlPoints.size());
-    if (i < 0) return controlPoints[0] * 2.0 - controlPoints[1];
-    if (i >= n) return controlPoints[n - 1] * 2.0 - controlPoints[n - 2];
-    return controlPoints[i];
-}
-
 // projection from linar algebra course
 double rayDistanceSquared(const Point2D& origin, const Point2D& dir, const Point2D& query) {
     const Point2D originToQuery = query - origin;
