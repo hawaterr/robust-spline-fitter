@@ -60,6 +60,12 @@ class CardinalSplineRegressor:
         neighbor search over the densely sampled curve; handles folding
         curves like "perpendicular" but its accuracy is bounded by
         samples_per_segment and it's slower.
+    fit_range : {"inliers", "data"}, default="inliers"
+        How far the fitted curve (`curve_`) is linearly extended at each
+        end. "inliers" extends only to cover the winning candidate's own
+        inlier x-range, so outliers far away in x can't drag the curve's
+        ends out. "data" extends to cover the full input x-range regardless
+        of which points ended up as inliers.
     seed : int, default=42
         Seed for the random control-point sampling, for reproducible fits.
 
@@ -99,6 +105,7 @@ class CardinalSplineRegressor:
         min_control_point_x_gap: float = 1.0,
         max_control_point_y_gap: float = 2.0,
         distance_metric: str = "perpendicular",
+        fit_range: str = "inliers",
         seed: int = 42,
     ):
         self.control_points = control_points
@@ -109,6 +116,7 @@ class CardinalSplineRegressor:
         self.min_control_point_x_gap = min_control_point_x_gap
         self.max_control_point_y_gap = max_control_point_y_gap
         self.distance_metric = distance_metric
+        self.fit_range = fit_range
         self.seed = seed
 
         self.control_points_: List[Tuple[float, float]] = []
@@ -138,6 +146,13 @@ class CardinalSplineRegressor:
                 f"distance_metric must be one of {sorted(metric_by_name)}, got {self.distance_metric!r}"
             )
 
+        range_by_name = {
+            "inliers": rsf.FitRange.Inliers,
+            "data": rsf.FitRange.Data,
+        }
+        if self.fit_range not in range_by_name:
+            raise ValueError(f"fit_range must be one of {sorted(range_by_name)}, got {self.fit_range!r}")
+
         params = rsf.RansacFitParams()
         params.numberOfControlPoints = self.control_points
         params.tries = self.tries
@@ -147,6 +162,7 @@ class CardinalSplineRegressor:
         params.minControlPointXGap = self.min_control_point_x_gap
         params.maxControlPointYGap = self.max_control_point_y_gap
         params.distanceMetric = metric_by_name[self.distance_metric]
+        params.fitRange = range_by_name[self.fit_range]
 
         result = rsf.fit_ransac(list(x), list(y), params, seed=self.seed)
 
