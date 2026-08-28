@@ -1,4 +1,4 @@
-#include "rsf/spline_distance_analytic.hpp"
+#include "rsf/distance_to_spline_newton.hpp"
 
 #include <algorithm>
 #include <cmath>

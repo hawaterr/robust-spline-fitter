@@ -1,4 +1,4 @@
-#include "rsf/spline_distance_sampled.hpp"
+#include "rsf/distance_to_spline_other.hpp"
 
 #include <algorithm>
 #include <cmath>

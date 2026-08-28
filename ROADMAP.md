@@ -2,7 +2,6 @@
 
 PRIORITY I
 - add developer note on run.sh
-- documentation: add robust to systematic errors
 - explain the solvers in more details: newton, ..
 - test curves that are not simply y = f(x), so one x has multiple y, more vertical, .. Fix any problems there
 - unit tests
@@ -22,7 +21,7 @@ WOULD BE NICE
 - Multi-curve fitting: sequential RANSAC (fit, remove inliers, refit on remainder) to handle data that's a mixture of multiple curves/clusters, not just one curve + noise.
 - Closed/periodic curves: support fitting a loop (first and last control points connect) — relevant if users have orbit-like or cyclic data, and cardinal splines support this naturally.
 - Verbose/diagnostic mode: return not just the winning candidate but score-vs-tries history, useful for tuning tries and threshold without guessing.
-- benchmark against sklear
+- benchmark against sklear, and different methods and data, run time ...
 - fit till last inlier or fit till last point in the range options
 
 

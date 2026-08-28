@@ -6,8 +6,8 @@
 #include <cstdio>
 #include <numeric>
 
-#include "rsf/spline_distance_analytic.hpp"
-#include "rsf/spline_distance_sampled.hpp"
+#include "rsf/distance_to_spline_newton.hpp"
+#include "rsf/distance_to_spline_other.hpp"
 
 namespace rsf {
 
