@@ -51,9 +51,7 @@ Point2D selectControlPoint(const std::vector<Point2D>& controlPoints, int i) {
     return controlPoints[i];
 }
 
-// Closed-form squared distance from `query` to the ray starting at `origin`
-// in direction `dir`, clamped so the projection cannot fall behind `origin`
-// (one-sided extension, matching extendSplineEndsLinearly).
+// projection from linar algebra course
 double rayDistanceSquared(const Point2D& origin, const Point2D& dir, const Point2D& query) {
     const Point2D originToQuery = query - origin;
     const double dirDot = dir.x * dir.x + dir.y * dir.y;

@@ -18,6 +18,7 @@ Point2D evalCardinalSegment(const Point2D& p0, const Point2D& p1, const Point2D&
 
     const double t2 = t * t;
     const double t3 = t2 * t;
+    // hermite spline basis, where m1 and m2 (or v1 and v2) are calculate automatically
     const double h00 = 2 * t3 - 3 * t2 + 1;
     const double h10 = t3 - 2 * t2 + t;
     const double h01 = -2 * t3 + 3 * t2;
