@@ -137,6 +137,12 @@ FitResult fitRansac(const std::vector<Point2D>& data, const RansacFitParams& par
     const double elapsedMs = std::chrono::duration<double, std::milli>(t1 - t0).count();
     std::fprintf(stderr, "[fitRansac] %.1f ms (%d/%d inliers)\n", elapsedMs, best.inlierCount, (int)data.size());
 
+    // std::fprintf(stderr, "[fitRansac] control points:");
+    // for (const auto& p : best.controlPoints) {
+    //     std::fprintf(stderr, " (%.4f, %.4f)", p.x, p.y);
+    // }
+    // std::fprintf(stderr, "\n");
+
     return best;
 }
 
