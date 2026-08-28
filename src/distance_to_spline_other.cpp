@@ -4,6 +4,8 @@
 #include <cmath>
 #include <limits>
 
+#include "rsf/point.hpp"
+
 namespace rsf {
 
 double verticalDistanceToSpline(const Point2D& point, const std::vector<Point2D>& curveSamples) {

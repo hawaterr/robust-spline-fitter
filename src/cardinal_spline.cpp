@@ -4,12 +4,6 @@
 
 namespace rsf {
 
-double distance(const Point2D& a, const Point2D& b) {
-    const double dx = a.x - b.x;
-    const double dy = a.y - b.y;
-    return std::sqrt(dx * dx + dy * dy);
-}
-
 Point2D evalCardinalSegment(const Point2D& p0, const Point2D& p1, const Point2D& p2, const Point2D& p3, double t,
                             double tension) {
     const double s = 1.0 - tension;

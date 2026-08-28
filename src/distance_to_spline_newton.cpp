@@ -4,11 +4,11 @@
 #include <cmath>
 #include <limits>
 
+#include "rsf/point.hpp"
+
 namespace rsf {
 
 namespace {
-
-double dot(const Point2D& a, const Point2D& b) { return a.x * b.x + a.y * b.y; }
 
 // Runs Newton's method from a single starting t, returns the converged
 // (or best-effort) t. Clamped to [0,1] each step.

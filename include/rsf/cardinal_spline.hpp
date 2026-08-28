@@ -2,18 +2,9 @@
 
 #include <vector>
 
+#include "rsf/point.hpp"
+
 namespace rsf {
-
-struct Point2D {  // Cpp: Point2D p = {3.0, 4.0};  to use
-    double x = 0.0;
-    double y = 0.0;
-
-    Point2D operator+(const Point2D& o) const { return {x + o.x, y + o.y}; }  // Cpp: operator overloading
-    Point2D operator-(const Point2D& o) const { return {x - o.x, y - o.y}; }
-    Point2D operator*(double s) const { return {x * s, y * s}; }
-};
-
-double distance(const Point2D& a, const Point2D& b);
 
 // Evaluates one segment of a cardinal spline between p1 and p2, using the
 // neighboring control points p0 and p3 to derive tangents. t in [0, 1].

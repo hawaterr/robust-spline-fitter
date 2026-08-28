@@ -8,22 +8,11 @@
 
 #include "rsf/distance_to_spline_newton.hpp"
 #include "rsf/distance_to_spline_other.hpp"
+#include "rsf/point.hpp"
 
 namespace rsf {
 
 namespace {
-
-// Min/max x over data, used to extend the candidate curve's linear ends to
-// cover the full data range regardless of where its control points landed.
-std::pair<double, double> dataXRange(const std::vector<Point2D>& data) {
-    double xMin = data[0].x;
-    double xMax = data[0].x;
-    for (const auto& p : data) {
-        xMin = std::min(xMin, p.x);
-        xMax = std::max(xMax, p.x);
-    }
-    return {xMin, xMax};
-}
 
 // Draws numberOfControlPoints distinct indices from `indices` (via partial
 // Fisher-Yates on a copy) and returns the corresponding data points sorted by
@@ -49,7 +38,7 @@ std::vector<Point2D> sampleControlPoints(const std::vector<Point2D>& data, std::
 std::vector<Point2D> buildCandidateCurve(const std::vector<Point2D>& controlPoints, const RansacFitParams& params,
                                          double dataXMin, double dataXMax) {
     if (params.distanceMetric != DistanceMetric::Vertical && params.distanceMetric != DistanceMetric::Sampled) {
-        return {};
+        return {}; // no need to build the whole curve if we use the newton method
     }
     std::vector<Point2D> curve = getCardinalSplineCurve(controlPoints, params.tension, params.samplesPerSegment);
     return extendSplineEndsLinearly(curve, dataXMin, dataXMax);
