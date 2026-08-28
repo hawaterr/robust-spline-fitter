@@ -61,6 +61,10 @@ PYBIND11_MODULE(rsf, m) {  // so we say import rsf in python
         .value("Vertical", rsf::DistanceMetric::Vertical)
         .value("Sampled", rsf::DistanceMetric::Sampled);
 
+    py::enum_<rsf::FitRange>(m, "FitRange")
+        .value("Inliers", rsf::FitRange::Inliers)
+        .value("Data", rsf::FitRange::Data);
+
     py::class_<rsf::RansacFitParams>(m, "RansacFitParams")  // binding input
         .def(py::init<>())                                  // can do in python params = rsf.RansacFitParams()
         .def_readwrite(
@@ -72,7 +76,8 @@ PYBIND11_MODULE(rsf, m) {  // so we say import rsf in python
         .def_readwrite("samplesPerSegment", &rsf::RansacFitParams::samplesPerSegment)
         .def_readwrite("minControlPointXGap", &rsf::RansacFitParams::minControlPointXGap)
         .def_readwrite("maxControlPointYGap", &rsf::RansacFitParams::maxControlPointYGap)
-        .def_readwrite("distanceMetric", &rsf::RansacFitParams::distanceMetric);
+        .def_readwrite("distanceMetric", &rsf::RansacFitParams::distanceMetric)
+        .def_readwrite("fitRange", &rsf::RansacFitParams::fitRange);
 
     py::class_<PyFitResult>(m, "FitResult")                            // binding output
         .def_readonly("control_points", &PyFitResult::control_points)  // can do control_points_ = result.control_points

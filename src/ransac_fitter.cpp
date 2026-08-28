@@ -72,6 +72,22 @@ std::pair<std::vector<bool>, int> scoreCandidate(const std::vector<Point2D>& dat
     return {std::move(inlierMask), inlierCount};
 }
 
+// Picks the x-range the final curve is extended to, per params.fitRange:
+// either the winning candidate's own inlier x-range, or the full input
+// data's x-range.
+std::pair<double, double> getDataRange(const std::vector<Point2D>& data, const FitResult& best,
+                                         const RansacFitParams& params, double dataXMin, double dataXMax) {
+    if (params.fitRange != FitRange::Inliers) {
+        return {dataXMin, dataXMax};
+    }
+    std::vector<Point2D> inliers;
+    inliers.reserve(best.inlierCount);
+    for (size_t i = 0; i < data.size(); ++i) {
+        if (best.inlierMask[i]) inliers.push_back(data[i]);
+    }
+    return dataXRange(inliers);
+}
+
 }  // namespace
 
 bool satisfiesSpacing(const std::vector<Point2D>& sortedControlPoints, double minXGap, double maxYGap) {
@@ -112,8 +128,9 @@ FitResult fitRansac(const std::vector<Point2D>& data, const RansacFitParams& par
     }
 
     if (best.inlierCount > 0) {
+        const auto [extendXMin, extendXMax] = getDataRange(data, best, params, dataXMin, dataXMax);
         best.curve = getCardinalSplineCurve(best.controlPoints, params.tension, params.samplesPerSegment);
-        best.curve = extendSplineEndsLinearly(best.curve, dataXMin, dataXMax);
+        best.curve = extendSplineEndsLinearly(best.curve, extendXMin, extendXMax);
     }
 
     const auto t1 = std::chrono::steady_clock::now();

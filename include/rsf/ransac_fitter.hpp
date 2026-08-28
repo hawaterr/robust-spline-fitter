@@ -28,6 +28,15 @@ enum class DistanceMetric {
     Sampled,
 };
 
+// How far the returned curve (FitResult::curve) is linearly extended at
+// each end, via extendSplineEndsLinearly.
+enum class FitRange {
+    // Extend to cover only the winning candidate's inlier x-range. 
+    Inliers,
+    // Extend to cover the full input data's x-range
+    Data,
+};
+
 struct RansacFitParams {
     int numberOfControlPoints = 4;
     int tries = 500;
@@ -37,6 +46,7 @@ struct RansacFitParams {
     double minControlPointXGap = 1.0;
     double maxControlPointYGap = 2.0;
     DistanceMetric distanceMetric = DistanceMetric::Perpendicular;
+    FitRange fitRange = FitRange::Inliers;
 };
 
 struct FitResult {
@@ -51,9 +61,9 @@ bool satisfiesSpacing(const std::vector<Point2D>& sortedControlPoints, double mi
 
 // Robustly fits a cardinal spline to data via RANSAC: repeatedly samples
 // numberOfControlPoints random data points as control points, builds the
-// spline through them (extended linearly to cover data's own x-range), and
-// keeps the candidate with the most inliers (points within `threshold` of
-// the curve).
+// spline through them (extended linearly per params.fitRange), and keeps
+// the candidate with the most inliers (points within `threshold` of the
+// curve).
 FitResult fitRansac(const std::vector<Point2D>& data, const RansacFitParams& params, std::mt19937& rng);
 
 }  // namespace rsf

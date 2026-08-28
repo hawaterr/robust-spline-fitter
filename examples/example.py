@@ -23,7 +23,8 @@ def main():
         samples_per_segment=200,
         min_control_point_x_gap=1.0,
         max_control_point_y_gap=2.0,
-        distance_metric="perpendicular"
+        distance_metric="perpendicular",
+        fit_range="data"
     )
     model.fit(x, y)
 
@@ -50,7 +51,7 @@ def main():
     ax.spines[["top", "right"]].set_visible(False)
     ax.grid(True, alpha=0.3)
 
-    ax.scatter(out_x, out_y, c="lightgray", s=10, alpha=0.6, label="outliers")
+    ax.scatter(out_x, out_y, c="darkgray", s=14, alpha=0.9, label="outliers")
     ax.scatter(in_x, in_y, c="tab:blue", s=14, label="inliers")
     ax.plot(curve_x, curve_y, c="tab:red", linewidth=2.5, label="fitted spline", zorder=3)
     ax.scatter(ctrl_x, ctrl_y, c="black", marker="x", s=70, linewidth=2, label="control points", zorder=4)
