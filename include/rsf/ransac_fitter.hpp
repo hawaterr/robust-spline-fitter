@@ -10,11 +10,11 @@ namespace rsf {
 // How getClosestDistanceToSplineUsingNewton (and hence inlier scoring) measures a point's
 // distance to the candidate curve.
 enum class DistanceMetric {
-    // Analytic perpendicular distance to the nearest point on the curve,
-    // found via Newton's method (getClosestSquaredDistanceToSegmentUsingNewton). Correct
-    // for curves that fold back in x, but costs a handful of Newton solves
-    // per point.
-    Perpendicular,
+    // Analytic distance to the nearest point on the curve, found via Newton's
+    // method (getClosestSquaredDistanceToSegmentUsingNewton). Correct for
+    // curves that fold back in x, but costs a handful of Newton solves per
+    // point.
+    Newton,
     // Vertical lookup: compares the point's y to the curve's y at the same
     // x, via linear interpolation over a densely sampled curve. Cheaper and
     // simpler, but only meaningful when the curve is a function of x (no
@@ -22,32 +22,34 @@ enum class DistanceMetric {
     Vertical,
     // Brute-force nearest neighbor over a densely sampled curve: minimum
     // Euclidean distance from the point to any sample. Handles folding
-    // curves like Perpendicular, but its accuracy is bounded by
+    // curves like Newton, but its accuracy is bounded by
     // samplesPerSegment rather than exact, and it's O(curve samples) per
     // point instead of O(control points).
     Sampled,
 };
 
-// How the randomly sampled control points are ordered along the curve before
-// the spline is built through them.
-enum class ControlPointOrdering {
-    // Sort by x. Cheap, but assumes the curve is a function of x (single y per
-    // x), so a candidate that folds back in x can never be represented.
-    XSorted,
-    // Order so the total path through the control points is shortest (an open
-    // TSP, via orderPointsByProximity). Makes folding and near-vertical curves
-    // representable, at the cost of an exact solve per try. Pair with
-    // DistanceMetric::Perpendicular, the only orientation-free metric.
-    Distance,
+// What shape the data is. This decides how the randomly sampled control points
+// are ordered along the curve before the spline is built through them.
+enum class CurveType {
+    // y is a function of x: a single y at each x. Control points are sorted by
+    // x, which is cheap, but a candidate that folds back in x can never be
+    // represented.
+    Explicit,
+    // One x may have several y, so the curve can fold back on itself and run
+    // near-vertically. Control points are ordered so the total path through
+    // them is shortest (an open TSP, via orderPointsByProximity), at the cost
+    // of an exact solve per try. Pair with DistanceMetric::Newton or
+    // ::Sampled, the only orientation-free metrics.
+    Implicit,
 };
 
 // How far the returned curve (FitResult::curve) is linearly extended at
 // each end, via extendSplineEndsLinearly.
 enum class FitRange {
-    // Extend to cover only the winning candidate's inlier x-range. 
-    Inliers,
+    // Extend to cover only the winning candidate's inlier x-range.
+    InlierXRange,
     // Extend to cover the full input data's x-range
-    Data,
+    DataXRange,
 };
 
 struct RansacFitParams {
@@ -58,9 +60,9 @@ struct RansacFitParams {
     int samplesPerSegment = 200;
     double minControlPointXGap = 1.0;
     double maxControlPointYGap = 2.0;
-    DistanceMetric distanceMetric = DistanceMetric::Perpendicular;
-    FitRange fitRange = FitRange::Inliers;
-    ControlPointOrdering ordering = ControlPointOrdering::XSorted;
+    DistanceMetric distanceMetric = DistanceMetric::Newton;
+    FitRange fitRange = FitRange::InlierXRange;
+    CurveType curveType = CurveType::Explicit;
 };
 
 struct FitResult {
@@ -70,13 +72,13 @@ struct FitResult {
     int inlierCount = 0;
 };
 
-// controlPoints must already be in curve order (whichever ordering produced
-// them). Under XSorted this checks a signed x gap and a y cap; under Distance
+// controlPoints must already be in curve order (whichever curve type produced
+// them). Under Explicit this checks a signed x gap and a y cap; under Implicit
 // the control points aren't x-ordered at all, so minXGap is instead applied as
 // a minimum straight-line gap between neighbours and the (x-directional) y cap
 // is skipped.
 bool satisfiesSpacing(const std::vector<Point2D>& controlPoints, double minXGap, double maxYGap,
-                      ControlPointOrdering ordering);
+                      CurveType curveType);
 
 // Robustly fits a cardinal spline to data via RANSAC: repeatedly samples
 // numberOfControlPoints random data points as control points, builds the
