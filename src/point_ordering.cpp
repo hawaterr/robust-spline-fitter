@@ -13,11 +13,12 @@ void orderPointsByProximity(std::vector<Point2D>& points) {
     }
 
     const double kInfinity = std::numeric_limits<double>::infinity();
-    const int subsetCount = 1 << n;  // Cpp: 1 << n is 2^n, one bit per point
+    const int subsetCount = 1 << n;  // Cpp: 1 << n is 2^n, bit shift
 
-    // Cpp: thread_local statics reused across calls so the RANSAC loop does no
-    // per-try heap allocation. assign() refills them without reallocating once
-    // they've grown to size.
+    // Cpp: static threadlocal is an optimisation, we do not need to reallocate every
+    // time the function is called
+    // threadlocal says keep it existing, but no data races from threads
+    // threadlocal already makes it static, but writting static makes it more explicit
     static thread_local std::vector<double> distances;
     static thread_local std::vector<double> shortestPathLength;
     static thread_local std::vector<int> previousPoint;
@@ -31,8 +32,6 @@ void orderPointsByProximity(std::vector<Point2D>& points) {
         }
     }
 
-    // Held-Karp: shortestPathLength[subset][last] is the length of the shortest
-    // path that visits exactly the points in `subset` and ends at `last`.
     shortestPathLength.assign(subsetCount * n, kInfinity);
     previousPoint.assign(subsetCount * n, -1);
 
