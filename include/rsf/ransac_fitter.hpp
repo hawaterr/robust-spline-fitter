@@ -28,6 +28,19 @@ enum class DistanceMetric {
     Sampled,
 };
 
+// How the randomly sampled control points are ordered along the curve before
+// the spline is built through them.
+enum class ControlPointOrdering {
+    // Sort by x. Cheap, but assumes the curve is a function of x (single y per
+    // x), so a candidate that folds back in x can never be represented.
+    XSorted,
+    // Order so the total path through the control points is shortest (an open
+    // TSP, via orderPointsByProximity). Makes folding and near-vertical curves
+    // representable, at the cost of an exact solve per try. Pair with
+    // DistanceMetric::Perpendicular, the only orientation-free metric.
+    Distance,
+};
+
 // How far the returned curve (FitResult::curve) is linearly extended at
 // each end, via extendSplineEndsLinearly.
 enum class FitRange {
@@ -47,6 +60,7 @@ struct RansacFitParams {
     double maxControlPointYGap = 2.0;
     DistanceMetric distanceMetric = DistanceMetric::Perpendicular;
     FitRange fitRange = FitRange::Inliers;
+    ControlPointOrdering ordering = ControlPointOrdering::XSorted;
 };
 
 struct FitResult {
@@ -56,8 +70,13 @@ struct FitResult {
     int inlierCount = 0;
 };
 
-// sortedControlPoints must already be sorted by x.
-bool satisfiesSpacing(const std::vector<Point2D>& sortedControlPoints, double minXGap, double maxYGap);
+// controlPoints must already be in curve order (whichever ordering produced
+// them). Under XSorted this checks a signed x gap and a y cap; under Distance
+// the control points aren't x-ordered at all, so minXGap is instead applied as
+// a minimum straight-line gap between neighbours and the (x-directional) y cap
+// is skipped.
+bool satisfiesSpacing(const std::vector<Point2D>& controlPoints, double minXGap, double maxYGap,
+                      ControlPointOrdering ordering);
 
 // Robustly fits a cardinal spline to data via RANSAC: repeatedly samples
 // numberOfControlPoints random data points as control points, builds the

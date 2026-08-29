@@ -51,6 +51,28 @@ PyFitResult fit_ransac(const std::vector<double>& x, const std::vector<double>& 
     return pyResult;
 }
 
+// Evaluates the fitted spline at each u, for callers holding control points as
+// plain (x, y) tuples. Unlike a lookup by x this stays well-defined when the
+// curve folds back.
+std::vector<std::pair<double, double>> eval_spline_at_u(const std::vector<std::pair<double, double>>& control_points,
+                                                        const std::vector<double>& u, double tension) {
+    if (control_points.size() < 2) {
+        throw std::invalid_argument("need at least 2 control points to evaluate a spline");
+    }
+
+    std::vector<rsf::Point2D> points;
+    points.reserve(control_points.size());
+    for (const auto& p : control_points) points.push_back({p.first, p.second});
+
+    std::vector<std::pair<double, double>> out;
+    out.reserve(u.size());
+    for (double ui : u) {
+        const rsf::Point2D p = rsf::evalCardinalSplineAtU(points, ui, tension);
+        out.emplace_back(p.x, p.y);
+    }
+    return out;
+}
+
 }  // namespace
 
 PYBIND11_MODULE(rsf, m) {  // so we say import rsf in python
@@ -65,6 +87,10 @@ PYBIND11_MODULE(rsf, m) {  // so we say import rsf in python
         .value("Inliers", rsf::FitRange::Inliers)
         .value("Data", rsf::FitRange::Data);
 
+    py::enum_<rsf::ControlPointOrdering>(m, "ControlPointOrdering")
+        .value("XSorted", rsf::ControlPointOrdering::XSorted)
+        .value("Distance", rsf::ControlPointOrdering::Distance);
+
     py::class_<rsf::RansacFitParams>(m, "RansacFitParams")  // binding input
         .def(py::init<>())                                  // can do in python params = rsf.RansacFitParams()
         .def_readwrite(
@@ -77,7 +103,8 @@ PYBIND11_MODULE(rsf, m) {  // so we say import rsf in python
         .def_readwrite("minControlPointXGap", &rsf::RansacFitParams::minControlPointXGap)
         .def_readwrite("maxControlPointYGap", &rsf::RansacFitParams::maxControlPointYGap)
         .def_readwrite("distanceMetric", &rsf::RansacFitParams::distanceMetric)
-        .def_readwrite("fitRange", &rsf::RansacFitParams::fitRange);
+        .def_readwrite("fitRange", &rsf::RansacFitParams::fitRange)
+        .def_readwrite("ordering", &rsf::RansacFitParams::ordering);
 
     py::class_<PyFitResult>(m, "FitResult")                            // binding output
         .def_readonly("control_points", &PyFitResult::control_points)  // can do control_points_ = result.control_points
@@ -88,4 +115,7 @@ PYBIND11_MODULE(rsf, m) {  // so we say import rsf in python
     m.def("fit_ransac", &fit_ransac, py::arg("x"), py::arg("y"), py::arg("params") = rsf::RansacFitParams(),
           py::arg("seed") = 42,
           "Robustly fit a cardinal spline to (x, y) data via RANSAC, returning the best FitResult.");
+
+    m.def("eval_spline_at_u", &eval_spline_at_u, py::arg("control_points"), py::arg("u"), py::arg("tension"),
+          "Evaluate a cardinal spline at parameter u in [0, n-1], returning (x, y) points.");
 }

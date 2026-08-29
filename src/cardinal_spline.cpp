@@ -1,5 +1,6 @@
 #include "rsf/cardinal_spline.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 namespace rsf {
@@ -83,6 +84,24 @@ std::vector<Point2D> getCardinalSplineCurve(const std::vector<Point2D>& controlP
         }
     }
     return curve;
+}
+
+Point2D evalCardinalSplineAtU(const std::vector<Point2D>& controlPoints, double u, double tension) {
+    const int n = static_cast<int>(controlPoints.size());
+    if (n < 2) {
+        return n == 1 ? controlPoints[0] : Point2D{};
+    }
+
+    const double clampedU = std::max(0.0, std::min(static_cast<double>(n - 1), u));
+    // The last segment owns u == n-1 (at t == 1), so clamp the index to n-2.
+    const int i = std::min(static_cast<int>(std::floor(clampedU)), n - 2);
+    const double t = clampedU - i;
+
+    const Point2D p0 = selectControlPoint(controlPoints, i - 1);
+    const Point2D p1 = selectControlPoint(controlPoints, i);
+    const Point2D p2 = selectControlPoint(controlPoints, i + 1);
+    const Point2D p3 = selectControlPoint(controlPoints, i + 2);
+    return evalCardinalSegment(p0, p1, p2, p3, t, tension);
 }
 
 std::vector<Point2D> extendSplineEndsLinearly(const std::vector<Point2D>& curve, double xMin, double xMax,

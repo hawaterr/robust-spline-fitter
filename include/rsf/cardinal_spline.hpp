@@ -31,6 +31,15 @@ Point2D evalCardinalSegmentSecondDerivative(const Point2D& p0, const Point2D& p1
 std::vector<Point2D> getCardinalSplineCurve(const std::vector<Point2D>& controlPoints, double tension,
                                             int samplesPerSegment);
 
+// Evaluates the spline at parameter u in [0, n-1] for n control points: the
+// integer part picks the segment, the fractional part is that segment's
+// Hermite parameter t. So u = 3.5 is halfway (in t, not in distance) along
+// segment 3, and integer u lands exactly on a control point.
+//
+// Unlike a lookup by x this stays well-defined when the curve folds back in x.
+// u is clamped to [0, n-1]. Requires at least 2 control points.
+Point2D evalCardinalSplineAtU(const std::vector<Point2D>& controlPoints, double u, double tension);
+
 // Extends a sampled curve at both ends with straight lines, so that it
 // covers [xMin, xMax]. Each extension continues the slope between the
 // curve's two outermost points at that end. No-op at an end if the curve

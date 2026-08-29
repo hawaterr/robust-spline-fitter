@@ -60,6 +60,26 @@ class CardinalSplineRegressor:
         neighbor search over the densely sampled curve; handles folding
         curves like "perpendicular" but its accuracy is bounded by
         samples_per_segment and it's slower.
+    ordering : {"xsorted", "distance"}, default="xsorted"
+        How the sampled control points are ordered along the curve.
+        "xsorted" sorts them by x, which is cheap but assumes the data is a
+        function of x (single y per x), so a curve that folds back in x can
+        never be represented. "distance" instead orders them so the total
+        path through them is shortest (an open TSP, solved exactly), which
+        makes folding and near-vertical curves representable. Pair
+        "distance" with distance_metric="perpendicular", the only
+        orientation-free metric, and note that `predict` is unavailable on a
+        curve that folds back - use `predict_at_u` instead.
+
+        Expect "distance" to be slower, typically by more than the ordering
+        itself costs. The exact solve is small at the default 4 control
+        points (~0.4us per try, ~20ms over tries=50000) though it grows
+        sharply with control points (~46us each at 8, ~284us at 10). The
+        larger effect is that "distance" applies min_control_point_x_gap as
+        a straight-line gap and skips the max_control_point_y_gap cap, so
+        many more candidates survive spacing and go on to be scored - which
+        is where the time actually goes. Raising min_control_point_x_gap
+        brings it back down.
     fit_range : {"inliers", "data"}, default="inliers"
         How far the fitted curve (`curve_`) is linearly extended at each
         end. "inliers" extends only to cover the winning candidate's own
@@ -106,6 +126,7 @@ class CardinalSplineRegressor:
         max_control_point_y_gap: float = 2.0,
         distance_metric: str = "perpendicular",
         fit_range: str = "inliers",
+        ordering: str = "xsorted",
         seed: int = 42,
     ):
         self.control_points = control_points
@@ -117,6 +138,7 @@ class CardinalSplineRegressor:
         self.max_control_point_y_gap = max_control_point_y_gap
         self.distance_metric = distance_metric
         self.fit_range = fit_range
+        self.ordering = ordering
         self.seed = seed
 
         self.control_points_: List[Tuple[float, float]] = []
@@ -153,6 +175,13 @@ class CardinalSplineRegressor:
         if self.fit_range not in range_by_name:
             raise ValueError(f"fit_range must be one of {sorted(range_by_name)}, got {self.fit_range!r}")
 
+        ordering_by_name = {
+            "xsorted": rsf.ControlPointOrdering.XSorted,
+            "distance": rsf.ControlPointOrdering.Distance,
+        }
+        if self.ordering not in ordering_by_name:
+            raise ValueError(f"ordering must be one of {sorted(ordering_by_name)}, got {self.ordering!r}")
+
         params = rsf.RansacFitParams()
         params.numberOfControlPoints = self.control_points
         params.tries = self.tries
@@ -163,6 +192,7 @@ class CardinalSplineRegressor:
         params.maxControlPointYGap = self.max_control_point_y_gap
         params.distanceMetric = metric_by_name[self.distance_metric]
         params.fitRange = range_by_name[self.fit_range]
+        params.ordering = ordering_by_name[self.ordering]
 
         result = rsf.fit_ransac(list(x), list(y), params, seed=self.seed)
 
@@ -175,7 +205,9 @@ class CardinalSplineRegressor:
     def predict(self, x_query: Sequence[float]) -> np.ndarray:
         """Interpolate the fitted spline at the given x values.
 
-        Must be called after `fit`.
+        Must be called after `fit`. Only valid when the fitted curve is a
+        function of x; a curve that folds back has several y values at one
+        x, so use `predict_at_u` for those instead.
 
         Parameters
         ----------
@@ -189,4 +221,42 @@ class CardinalSplineRegressor:
         if not self.curve_:
             raise RuntimeError("CardinalSplineRegressor.predict() called before fit()")
         curve_x, curve_y = zip(*self.curve_)
+        # np.interp needs increasing x and silently returns nonsense without
+        # it, so refuse rather than hand back a wrong number.
+        if any(b < a for a, b in zip(curve_x, curve_x[1:])):
+            raise RuntimeError(
+                "the fitted curve is not a function of x (it folds back), so "
+                "predict() has no single y per x. Use predict_at_u() instead."
+            )
         return np.interp(x_query, curve_x, curve_y)
+
+    def predict_at_u(self, u_query: Sequence[float]) -> np.ndarray:
+        """Evaluate the fitted spline at the given curve parameters.
+
+        Must be called after `fit`. Unlike `predict`, this stays well-defined
+        for curves that fold back in x, so it is the way to evaluate a fit
+        made with ordering="distance".
+
+        `u` runs over [0, n-1] for n control points: the integer part picks
+        the segment and the fractional part is that segment's parameter, so
+        u=1.5 is halfway along segment 1 and integer u lands exactly on a
+        control point. Note the spacing is in the spline's own parameter,
+        not arc length, so equal steps in u are not equally spaced in
+        distance. u is clamped to [0, n-1].
+
+        This evaluates the spline between the control points only; it does
+        not include the linear end extensions carried by `curve_`.
+
+        Parameters
+        ----------
+        u_query : sequence of float
+            Curve parameters to evaluate at.
+
+        Returns
+        -------
+        numpy.ndarray of shape (len(u_query), 2), the (x, y) curve points.
+        """
+        if not self.control_points_:
+            raise RuntimeError("CardinalSplineRegressor.predict_at_u() called before fit()")
+        points = rsf.eval_spline_at_u(self.control_points_, list(u_query), self.tension)
+        return np.array(points, dtype=float)

@@ -17,14 +17,15 @@ def main():
 
     model = CardinalSplineRegressor(
         control_points=4,
-        tries=50000,
-        threshold=0.18,
+        tries=5000,
+        threshold=0.1,
         tension=0.4,
         samples_per_segment=200,
         min_control_point_x_gap=1.0,
         max_control_point_y_gap=2.0,
         distance_metric="perpendicular",
-        fit_range="data"
+        fit_range="inliers",
+        ordering="distance"
     )
     model.fit(x, y)
 
@@ -33,10 +34,10 @@ def main():
           f"{model.control_points} control points over {model.tries} tries")
 
     x_query = np.linspace(min(x), max(x), 5)
-    y_pred = model.predict(x_query)
-    print("predict() sample:")
-    for xq, yq in zip(x_query, y_pred):
-        print(f"  x={xq:.2f} -> y={yq:.2f}")
+    # y_pred = model.predict(x_query)
+    # print("predict() sample:")
+    # for xq, yq in zip(x_query, y_pred):
+    #     print(f"  x={xq:.2f} -> y={yq:.2f}")
 
     in_x = [xi for xi, inlier in zip(x, model.inliers_) if inlier]
     in_y = [yi for yi, inlier in zip(y, model.inliers_) if inlier]

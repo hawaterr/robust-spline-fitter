@@ -9,26 +9,32 @@
 #include "rsf/distance_to_spline_newton.hpp"
 #include "rsf/distance_to_spline_other.hpp"
 #include "rsf/point.hpp"
+#include "rsf/point_ordering.hpp"
 
 namespace rsf {
 
 namespace {
 
 // Draws numberOfControlPoints distinct indices from `indices` (via partial
-// Fisher-Yates on a copy) and returns the corresponding data points sorted by
-// x, ready to serve as spline control points.
+// Fisher-Yates on a copy) and returns the corresponding data points ordered
+// along the curve per `ordering`, ready to serve as spline control points.
 std::vector<Point2D> sampleControlPoints(const std::vector<Point2D>& data, std::vector<int> indices,
-                                         int numberOfControlPoints, std::mt19937& rng) {
+                                         int numberOfControlPoints, ControlPointOrdering ordering, std::mt19937& rng) {
     std::shuffle(indices.begin(), indices.end(), rng);
     indices.resize(numberOfControlPoints);
-    // Order control points along the curve by x. This assumes the curve is a
-    // function of x (single y per x), which holds for this synthetic test data
-    // but won't hold in general (e.g. closed loops or non-monotonic curves).
-    std::sort(indices.begin(), indices.end(), [&](int a, int b) { return data[a].x < data[b].x; });
+    if (ordering == ControlPointOrdering::XSorted) {
+        // Ordering by x assumes the curve is a function of x (single y per x).
+        // Use ControlPointOrdering::Distance for curves that fold back.
+        std::sort(indices.begin(), indices.end(), [&](int a, int b) { return data[a].x < data[b].x; });
+    }
 
     std::vector<Point2D> controlPoints;
     controlPoints.reserve(numberOfControlPoints);
     for (int idx : indices) controlPoints.push_back(data[idx]);
+
+    if (ordering == ControlPointOrdering::Distance) {
+        orderPointsByProximity(controlPoints);
+    }
     return controlPoints;
 }
 
@@ -90,10 +96,22 @@ std::pair<double, double> getDataRange(const std::vector<Point2D>& data, const F
 
 }  // namespace
 
-bool satisfiesSpacing(const std::vector<Point2D>& sortedControlPoints, double minXGap, double maxYGap) {
-    for (size_t i = 0; i + 1 < sortedControlPoints.size(); ++i) {
-        const double xGap = sortedControlPoints[i + 1].x - sortedControlPoints[i].x;
-        const double yGap = std::abs(sortedControlPoints[i + 1].y - sortedControlPoints[i].y);
+bool satisfiesSpacing(const std::vector<Point2D>& controlPoints, double minXGap, double maxYGap,
+                      ControlPointOrdering ordering) {
+    for (size_t i = 0; i + 1 < controlPoints.size(); ++i) {
+        if (ordering == ControlPointOrdering::Distance) {
+            // Control points aren't x-ordered here, so a signed x gap is
+            // meaningless (a fold-back gives a negative one) and the y cap
+            // would forbid exactly the near-vertical segments this ordering
+            // exists to allow. Keep the intent - don't bunch control points
+            // together - as a straight-line minimum gap.
+            if (distance(controlPoints[i], controlPoints[i + 1]) <= minXGap) {
+                return false;
+            }
+            continue;
+        }
+        const double xGap = controlPoints[i + 1].x - controlPoints[i].x;
+        const double yGap = std::abs(controlPoints[i + 1].y - controlPoints[i].y);
         if (xGap <= minXGap || yGap >= maxYGap) {
             return false;
         }
@@ -111,9 +129,10 @@ FitResult fitRansac(const std::vector<Point2D>& data, const RansacFitParams& par
     std::iota(indices.begin(), indices.end(), 0);  // Cpp: fills indices with [0,1,2,...], .begin() returns an iterator
 
     for (int attempt = 0; attempt < params.tries; ++attempt) {
-        std::vector<Point2D> controlPoints = sampleControlPoints(data, indices, params.numberOfControlPoints, rng);
+        std::vector<Point2D> controlPoints =
+            sampleControlPoints(data, indices, params.numberOfControlPoints, params.ordering, rng);
 
-        if (!satisfiesSpacing(controlPoints, params.minControlPointXGap, params.maxControlPointYGap)) {
+        if (!satisfiesSpacing(controlPoints, params.minControlPointXGap, params.maxControlPointYGap, params.ordering)) {
             continue;
         }
 
