@@ -10,8 +10,6 @@ namespace rsf {
 
 namespace {
 
-// Runs Newton's method from a single starting t, returns the converged
-// (or best-effort) t. Clamped to [0,1] each step.
 double singleNewtonRun(const Point2D& p0, const Point2D& p1, const Point2D& p2, const Point2D& p3, const Point2D& query,
                        double tension, double tStart) {
     constexpr int maxIters = 8;

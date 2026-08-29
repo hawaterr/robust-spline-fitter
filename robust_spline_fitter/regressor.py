@@ -45,60 +45,61 @@ class CardinalSplineRegressor:
         Reject any candidate where two adjacent (x-sorted) control points
         are within this x distance of each other. Avoids numerically
         unstable, near-degenerate spline segments. Under
-        ordering="distance" the control points aren't x-ordered, so a
+        curve_type="implicit" the control points aren't x-ordered, so a
         signed x gap is meaningless; this is applied as a minimum
         straight-line gap between neighbours instead.
     max_control_point_y_gap : float, default=2.0
         Reject any candidate where two adjacent (x-sorted) control points
         differ in y by more than this. Avoids wild swings between control
         points that happen to land close together in x. Ignored entirely
-        under ordering="distance", where it would forbid exactly the
-        near-vertical segments that ordering exists to allow.
-    distance_metric : {"perpendicular", "vertical", "sampled"}, default="perpendicular"
+        under curve_type="implicit", where it would forbid exactly the
+        near-vertical segments that curve type exists to allow.
+    distance_to_curve : {"newton", "vertical", "sampled"}, default="newton"
         Inlier calculation method: how a data point's distance to a
-        candidate curve is measured for inlier scoring. "perpendicular" is
-        the analytic nearest-point distance (via Newton's method) and
+        candidate curve is measured for inlier scoring. "newton" is the
+        analytic nearest-point distance (solved with Newton's method) and
         handles curves that fold back in x. "vertical" is a cheaper lookup
         that compares the point's y to the curve's y at the same x (linear
         interpolation over the sampled curve); only meaningful when the
         curve is a function of x. "sampled" is a brute-force nearest
         neighbor search over the densely sampled curve; handles folding
-        curves like "perpendicular" but its accuracy is bounded by
+        curves like "newton" but its accuracy is bounded by
         samples_per_segment and it's slower.
-    ordering : {"xsorted", "distance"}, default="xsorted"
-        How the sampled control points are ordered along the curve. This
-        selects which family of curves can be fitted, so the other options
-        have to be compatible with it.
+    curve_type : {"explicit", "implicit"}, default="explicit"
+        The shape of the data. "explicit" means y is a function of x - a
+        single y at each x. "implicit" allows several y at one x, so the
+        curve can fold back on itself and run near-vertically.
 
-        "xsorted" sorts them by x, which is cheap but assumes the data is a
-        function of x (single y per x), so a curve that folds back in x can
-        never be represented. "distance" instead orders them so the total
-        path through them is shortest (an open TSP, solved exactly), which
-        makes folding and near-vertical curves representable.
+        This decides how the sampled control points are ordered before the
+        spline is built through them: "explicit" sorts them by x, which is
+        cheap but makes a folding curve unrepresentable; "implicit" orders
+        them so the total path through them is shortest (an open TSP,
+        solved exactly).
 
-        "distance" rejects the options that assume a single y per x:
-        distance_metric="vertical" (undefined for a folding curve, so use
-        "perpendicular" or "sampled") and fit_range="data" (no linear end
-        extension happens at all under "distance", see fit_range). It also
-        reinterprets min_control_point_x_gap and ignores
+        Because it sets which curves can be fitted, the other options have
+        to be compatible with it. "implicit" rejects the ones that assume a
+        single y per x: distance_to_curve="vertical" (undefined when one x
+        has several y, so use "newton" or "sampled") and
+        fit_range="data_x_range" (an implicit curve isn't laid out along x).
+        It also reinterprets min_control_point_x_gap and ignores
         max_control_point_y_gap, as described above. Note that `predict` is
         unavailable on a curve that folds back - use `predict_at_u` instead.
 
-        Expect "distance" to be slower, typically by more than the ordering
+        Expect "implicit" to be slower, typically by more than the ordering
         itself costs. The exact solve is small at the default 4 control
         points (~0.4us per try, ~20ms over tries=50000) though it grows
         sharply with control points (~46us each at 8, ~284us at 10). The
         larger effect is that the spacing changes above let many more
         candidates survive and go on to be scored - which is where the time
         actually goes. Raising min_control_point_x_gap brings it back down.
-    fit_range : {"inliers", "data"}, default="inliers"
+    fit_range : {"inlier_x_range", "data_x_range"}, default="inlier_x_range"
         How far the fitted curve (`curve_`) is linearly extended at each
-        end. "inliers" extends only to cover the winning candidate's own
-        inlier x-range, so outliers far away in x can't drag the curve's
-        ends out. "data" extends to cover the full input x-range regardless
-        of which points ended up as inliers. Extending needs a well-defined
-        dy/dx at each end, so no extension happens at all under
-        ordering="distance" and only the default "inliers" is accepted there.
+        end. "inlier_x_range" extends only to cover the winning candidate's
+        own inlier x-range, so outliers far away in x can't drag the
+        curve's ends out. "data_x_range" extends to cover the full input
+        x-range regardless of which points ended up as inliers. Extension
+        runs along x, which an implicit curve isn't laid out along, so only
+        the default is accepted under curve_type="implicit".
     seed : int, default=42
         Seed for the random control-point sampling, for reproducible fits.
 
@@ -114,8 +115,7 @@ class CardinalSplineRegressor:
     curve_ : list of (float, float)
         Sampled points along the fitted spline, x-ordered, including the
         linear extension out to the data's own x-range. Under
-        ordering="distance" the points follow the curve rather than x, and
-        no linear extension is applied.
+        curve_type="implicit" the points follow the curve rather than x.
     inliers_ : list of bool
         Per-input-point inlier mask against the winning curve, aligned
         with the `x`/`y` passed to `fit`.
@@ -139,9 +139,9 @@ class CardinalSplineRegressor:
         samples_per_segment: int = 200,
         min_control_point_x_gap: float = 1.0,
         max_control_point_y_gap: float = 2.0,
-        distance_metric: str = "perpendicular",
-        fit_range: str = "inliers",
-        ordering: str = "xsorted",
+        distance_to_curve: str = "newton",
+        fit_range: str = "inlier_x_range",
+        curve_type: str = "explicit",
         seed: int = 42,
     ):
         self.control_points = control_points
@@ -151,9 +151,9 @@ class CardinalSplineRegressor:
         self.samples_per_segment = samples_per_segment
         self.min_control_point_x_gap = min_control_point_x_gap
         self.max_control_point_y_gap = max_control_point_y_gap
-        self.distance_metric = distance_metric
+        self.distance_to_curve = distance_to_curve
         self.fit_range = fit_range
-        self.ordering = ordering
+        self.curve_type = curve_type
         self.seed = seed
 
         self.control_points_: List[Tuple[float, float]] = []
@@ -174,45 +174,45 @@ class CardinalSplineRegressor:
         self, so calls can be chained, e.g. `model = CardinalSplineRegressor().fit(x, y)`.
         """
         metric_by_name = {
-            "perpendicular": rsf.DistanceMetric.Perpendicular,
+            "newton": rsf.DistanceMetric.Newton,
             "vertical": rsf.DistanceMetric.Vertical,
             "sampled": rsf.DistanceMetric.Sampled,
         }
-        if self.distance_metric not in metric_by_name:
+        if self.distance_to_curve not in metric_by_name:
             raise ValueError(
-                f"distance_metric must be one of {sorted(metric_by_name)}, got {self.distance_metric!r}"
+                f"distance_to_curve must be one of {sorted(metric_by_name)}, got {self.distance_to_curve!r}"
             )
 
         range_by_name = {
-            "inliers": rsf.FitRange.Inliers,
-            "data": rsf.FitRange.Data,
+            "inlier_x_range": rsf.FitRange.InlierXRange,
+            "data_x_range": rsf.FitRange.DataXRange,
         }
         if self.fit_range not in range_by_name:
             raise ValueError(f"fit_range must be one of {sorted(range_by_name)}, got {self.fit_range!r}")
 
-        ordering_by_name = {
-            "xsorted": rsf.ControlPointOrdering.XSorted,
-            "distance": rsf.ControlPointOrdering.Distance,
+        curve_type_by_name = {
+            "explicit": rsf.CurveType.Explicit,
+            "implicit": rsf.CurveType.Implicit,
         }
-        if self.ordering not in ordering_by_name:
-            raise ValueError(f"ordering must be one of {sorted(ordering_by_name)}, got {self.ordering!r}")
+        if self.curve_type not in curve_type_by_name:
+            raise ValueError(f"curve_type must be one of {sorted(curve_type_by_name)}, got {self.curve_type!r}")
 
-        if self.ordering == "distance":
-            # "distance" ordering exists to fit curves that fold back in x.
-            # These options each assume a single y per x, so they are not just
-            # suboptimal here, they are wrong - refuse rather than fit
-            # something plausible-looking off a meaningless setting.
-            if self.distance_metric == "vertical":
+        if self.curve_type == "implicit":
+            # An implicit curve can have several y at one x, so options that
+            # assume a single y per x are not just suboptimal here, they are
+            # wrong - refuse rather than fit something plausible-looking off
+            # a meaningless setting.
+            if self.distance_to_curve == "vertical":
                 raise ValueError(
-                    'distance_metric="vertical" measures y at a given x, which is undefined for '
-                    'a curve that folds back, and ordering="distance" exists to fit exactly those. '
-                    'Use distance_metric="perpendicular" (or "sampled").'
+                    'distance_to_curve="vertical" measures y at a given x, which is undefined '
+                    'when one x can have several y. Use distance_to_curve="newton" (or "sampled") '
+                    'with curve_type="implicit".'
                 )
-            if self.fit_range != "inliers":
+            if self.fit_range != "inlier_x_range":
                 raise ValueError(
-                    f'fit_range={self.fit_range!r} has no meaning with ordering="distance": the '
-                    "fitted curve is not extended at all there, since a linear extension in x is "
-                    'undefined for a curve that folds back. Leave fit_range="inliers" (the default).'
+                    f'fit_range={self.fit_range!r} has no meaning with curve_type="implicit": an '
+                    "implicit curve is not laid out along x, so extending it to cover the whole "
+                    'data x-range is not well defined. Use fit_range="inlier_x_range" (the default).'
                 )
 
         params = rsf.RansacFitParams()
@@ -223,9 +223,9 @@ class CardinalSplineRegressor:
         params.samplesPerSegment = self.samples_per_segment
         params.minControlPointXGap = self.min_control_point_x_gap
         params.maxControlPointYGap = self.max_control_point_y_gap
-        params.distanceMetric = metric_by_name[self.distance_metric]
+        params.distanceMetric = metric_by_name[self.distance_to_curve]
         params.fitRange = range_by_name[self.fit_range]
-        params.ordering = ordering_by_name[self.ordering]
+        params.curveType = curve_type_by_name[self.curve_type]
 
         result = rsf.fit_ransac(list(x), list(y), params, seed=self.seed)
 
@@ -268,7 +268,7 @@ class CardinalSplineRegressor:
 
         Must be called after `fit`. Unlike `predict`, this stays well-defined
         for curves that fold back in x, so it is the way to evaluate a fit
-        made with ordering="distance".
+        made with curve_type="implicit".
 
         `u` runs over [0, n-1] for n control points: the integer part picks
         the segment and the fractional part is that segment's parameter, so

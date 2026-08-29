@@ -79,17 +79,17 @@ PYBIND11_MODULE(rsf, m) {  // so we say import rsf in python
     m.doc() = "Robust cardinal spline fitting via RANSAC";
 
     py::enum_<rsf::DistanceMetric>(m, "DistanceMetric")
-        .value("Perpendicular", rsf::DistanceMetric::Perpendicular)
+        .value("Newton", rsf::DistanceMetric::Newton)
         .value("Vertical", rsf::DistanceMetric::Vertical)
         .value("Sampled", rsf::DistanceMetric::Sampled);
 
     py::enum_<rsf::FitRange>(m, "FitRange")
-        .value("Inliers", rsf::FitRange::Inliers)
-        .value("Data", rsf::FitRange::Data);
+        .value("InlierXRange", rsf::FitRange::InlierXRange)
+        .value("DataXRange", rsf::FitRange::DataXRange);
 
-    py::enum_<rsf::ControlPointOrdering>(m, "ControlPointOrdering")
-        .value("XSorted", rsf::ControlPointOrdering::XSorted)
-        .value("Distance", rsf::ControlPointOrdering::Distance);
+    py::enum_<rsf::CurveType>(m, "CurveType")
+        .value("Explicit", rsf::CurveType::Explicit)
+        .value("Implicit", rsf::CurveType::Implicit);
 
     py::class_<rsf::RansacFitParams>(m, "RansacFitParams")  // binding input
         .def(py::init<>())                                  // can do in python params = rsf.RansacFitParams()
@@ -104,7 +104,7 @@ PYBIND11_MODULE(rsf, m) {  // so we say import rsf in python
         .def_readwrite("maxControlPointYGap", &rsf::RansacFitParams::maxControlPointYGap)
         .def_readwrite("distanceMetric", &rsf::RansacFitParams::distanceMetric)
         .def_readwrite("fitRange", &rsf::RansacFitParams::fitRange)
-        .def_readwrite("ordering", &rsf::RansacFitParams::ordering);
+        .def_readwrite("curveType", &rsf::RansacFitParams::curveType);
 
     py::class_<PyFitResult>(m, "FitResult")                            // binding output
         .def_readonly("control_points", &PyFitResult::control_points)  // can do control_points_ = result.control_points

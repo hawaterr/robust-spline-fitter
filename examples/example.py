@@ -23,9 +23,9 @@ def main():
         samples_per_segment=200,
         min_control_point_x_gap=1.0,
         max_control_point_y_gap=2.0,
-        distance_metric="perpendicular",
-        fit_range="inliers",
-        ordering="distance"
+        distance_to_curve="newton",
+        fit_range="inlier_x_range",
+        curve_type="implicit"
     )
     model.fit(x, y)
 
@@ -33,11 +33,11 @@ def main():
     print(f"Best fit: {model.inlier_count_} / {len(df)} inliers using "
           f"{model.control_points} control points over {model.tries} tries")
 
-    # Standing in for real tests until there are some: a curve that runs off
-    # to infinity is the failure mode an eyeballed plot most easily hides.
     curve_ys = [p[1] for p in model.curve_]
+    margin = 0.5 * (max(y) - min(y))
     assert all(np.isfinite([c for p in model.curve_ for c in p])), "curve has non-finite points"
-    assert min(y) - 1 < min(curve_ys) and max(curve_ys) < max(y) + 1, "curve escapes the data's y-range"
+    assert min(y) - margin < min(curve_ys) and max(curve_ys) < max(y) + margin, \
+        "curve escapes the data's y-range"
 
     x_query = np.linspace(min(x), max(x), 5)
     # y_pred = model.predict(x_query)

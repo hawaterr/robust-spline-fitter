@@ -17,14 +17,14 @@ namespace {
 
 // Draws numberOfControlPoints distinct indices from `indices` (via partial
 // Fisher-Yates on a copy) and returns the corresponding data points ordered
-// along the curve per `ordering`, ready to serve as spline control points.
+// along the curve per `curveType`, ready to serve as spline control points.
 std::vector<Point2D> sampleControlPoints(const std::vector<Point2D>& data, std::vector<int> indices,
-                                         int numberOfControlPoints, ControlPointOrdering ordering, std::mt19937& rng) {
+                                         int numberOfControlPoints, CurveType curveType, std::mt19937& rng) {
     std::shuffle(indices.begin(), indices.end(), rng);
     indices.resize(numberOfControlPoints);
-    if (ordering == ControlPointOrdering::XSorted) {
+    if (curveType == CurveType::Explicit) {
         // Ordering by x assumes the curve is a function of x (single y per x).
-        // Use ControlPointOrdering::Distance for curves that fold back.
+        // Use CurveType::Implicit for curves that fold back.
         std::sort(indices.begin(), indices.end(), [&](int a, int b) { return data[a].x < data[b].x; });
     }
 
@@ -32,26 +32,23 @@ std::vector<Point2D> sampleControlPoints(const std::vector<Point2D>& data, std::
     controlPoints.reserve(numberOfControlPoints);
     for (int idx : indices) controlPoints.push_back(data[idx]);
 
-    if (ordering == ControlPointOrdering::Distance) {
+    if (curveType == CurveType::Implicit) {
         orderPointsByProximity(controlPoints);
     }
     return controlPoints;
 }
 
-// Builds the densely-sampled, linearly-extended curve needed by the
-// Vertical/Sampled metrics. Perpendicular scores directly off control points
-// and never calls this, so it's skipped there to avoid the sampling cost.
+
 std::vector<Point2D> buildCandidateCurve(const std::vector<Point2D>& controlPoints, const RansacFitParams& params,
                                          double dataXMin, double dataXMax) {
-    if (params.distanceMetric != DistanceMetric::Vertical && params.distanceMetric != DistanceMetric::Sampled) {
-        return {}; // no need to build the whole curve if we use the newton method
+    if (params.distanceMetric == DistanceMetric::Newton) {
+        return {}; // no need to build the whole curve if we use the newton method (optimisation)
     }
     std::vector<Point2D> curve = getCardinalSplineCurve(controlPoints, params.tension, params.samplesPerSegment);
     return extendSplineEndsLinearly(curve, dataXMin, dataXMax);
 }
 
-// Scores one candidate against all of `data` using the configured distance
-// metric, returning a per-point inlier mask plus the total inlier count.
+
 std::pair<std::vector<bool>, int> scoreCandidate(const std::vector<Point2D>& data,
                                                  const std::vector<Point2D>& controlPoints,
                                                  const std::vector<Point2D>& candidateCurve,
@@ -78,12 +75,11 @@ std::pair<std::vector<bool>, int> scoreCandidate(const std::vector<Point2D>& dat
     return {std::move(inlierMask), inlierCount};
 }
 
-// Picks the x-range the final curve is extended to, per params.fitRange:
-// either the winning candidate's own inlier x-range, or the full input
-// data's x-range.
+// Picks the x-range the final curve is extended to, in case the user wants to 
+// only see the useful part of the best winning curve
 std::pair<double, double> getDataRange(const std::vector<Point2D>& data, const FitResult& best,
                                          const RansacFitParams& params, double dataXMin, double dataXMax) {
-    if (params.fitRange == FitRange::Data) {
+    if (params.fitRange == FitRange::DataXRange) {
         return {dataXMin, dataXMax};
     }
     else{
@@ -100,18 +96,13 @@ std::pair<double, double> getDataRange(const std::vector<Point2D>& data, const F
 }  // namespace
 
 bool satisfiesSpacing(const std::vector<Point2D>& controlPoints, double minXGap, double maxYGap,
-                      ControlPointOrdering ordering) {
+                      CurveType curveType) {
     for (size_t i = 0; i + 1 < controlPoints.size(); ++i) {
-        if (ordering == ControlPointOrdering::Distance) {
-            // Control points aren't x-ordered here, so a signed x gap is
-            // meaningless (a fold-back gives a negative one) and the y cap
-            // would forbid exactly the near-vertical segments this ordering
-            // exists to allow. Keep the intent - don't bunch control points
-            // together - as a straight-line minimum gap.
-            if (distance(controlPoints[i], controlPoints[i + 1]) <= minXGap) {
-                return false;
-            }
-            continue;
+        if (curveType == CurveType::Explicit) {
+            // if (distance(controlPoints[i], controlPoints[i + 1]) <= minD) {
+            //     return false;
+            // } TODO: add
+            return;
         }
         const double xGap = controlPoints[i + 1].x - controlPoints[i].x;
         const double yGap = std::abs(controlPoints[i + 1].y - controlPoints[i].y);
@@ -133,9 +124,9 @@ FitResult fitRansac(const std::vector<Point2D>& data, const RansacFitParams& par
 
     for (int attempt = 0; attempt < params.tries; ++attempt) {
         std::vector<Point2D> controlPoints =
-            sampleControlPoints(data, indices, params.numberOfControlPoints, params.ordering, rng);
+            sampleControlPoints(data, indices, params.numberOfControlPoints, params.curveType, rng);
 
-        if (!satisfiesSpacing(controlPoints, params.minControlPointXGap, params.maxControlPointYGap, params.ordering)) {
+        if (!satisfiesSpacing(controlPoints, params.minControlPointXGap, params.maxControlPointYGap, params.curveType)) {
             continue;
         }
 
