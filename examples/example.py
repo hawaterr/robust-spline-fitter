@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 from robust_spline_fitter import CardinalSplineRegressor
 
-DATA_CSV = Path(__file__).resolve().parent.parent / "data" / "data.csv"
+DATA_CSV = Path(__file__).resolve().parent.parent / "data" / "vertical.csv"
 
 
 def main():
@@ -32,6 +32,12 @@ def main():
     print(f"Loaded {len(df)} points from {DATA_CSV}")
     print(f"Best fit: {model.inlier_count_} / {len(df)} inliers using "
           f"{model.control_points} control points over {model.tries} tries")
+
+    # Standing in for real tests until there are some: a curve that runs off
+    # to infinity is the failure mode an eyeballed plot most easily hides.
+    curve_ys = [p[1] for p in model.curve_]
+    assert all(np.isfinite([c for p in model.curve_ for c in p])), "curve has non-finite points"
+    assert min(y) - 1 < min(curve_ys) and max(curve_ys) < max(y) + 1, "curve escapes the data's y-range"
 
     x_query = np.linspace(min(x), max(x), 5)
     # y_pred = model.predict(x_query)

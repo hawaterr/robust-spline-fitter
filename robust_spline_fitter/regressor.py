@@ -44,11 +44,16 @@ class CardinalSplineRegressor:
     min_control_point_x_gap : float, default=1.0
         Reject any candidate where two adjacent (x-sorted) control points
         are within this x distance of each other. Avoids numerically
-        unstable, near-degenerate spline segments.
+        unstable, near-degenerate spline segments. Under
+        ordering="distance" the control points aren't x-ordered, so a
+        signed x gap is meaningless; this is applied as a minimum
+        straight-line gap between neighbours instead.
     max_control_point_y_gap : float, default=2.0
         Reject any candidate where two adjacent (x-sorted) control points
         differ in y by more than this. Avoids wild swings between control
-        points that happen to land close together in x.
+        points that happen to land close together in x. Ignored entirely
+        under ordering="distance", where it would forbid exactly the
+        near-vertical segments that ordering exists to allow.
     distance_metric : {"perpendicular", "vertical", "sampled"}, default="perpendicular"
         Inlier calculation method: how a data point's distance to a
         candidate curve is measured for inlier scoring. "perpendicular" is
@@ -61,31 +66,39 @@ class CardinalSplineRegressor:
         curves like "perpendicular" but its accuracy is bounded by
         samples_per_segment and it's slower.
     ordering : {"xsorted", "distance"}, default="xsorted"
-        How the sampled control points are ordered along the curve.
+        How the sampled control points are ordered along the curve. This
+        selects which family of curves can be fitted, so the other options
+        have to be compatible with it.
+
         "xsorted" sorts them by x, which is cheap but assumes the data is a
         function of x (single y per x), so a curve that folds back in x can
         never be represented. "distance" instead orders them so the total
         path through them is shortest (an open TSP, solved exactly), which
-        makes folding and near-vertical curves representable. Pair
-        "distance" with distance_metric="perpendicular", the only
-        orientation-free metric, and note that `predict` is unavailable on a
-        curve that folds back - use `predict_at_u` instead.
+        makes folding and near-vertical curves representable.
+
+        "distance" rejects the options that assume a single y per x:
+        distance_metric="vertical" (undefined for a folding curve, so use
+        "perpendicular" or "sampled") and fit_range="data" (no linear end
+        extension happens at all under "distance", see fit_range). It also
+        reinterprets min_control_point_x_gap and ignores
+        max_control_point_y_gap, as described above. Note that `predict` is
+        unavailable on a curve that folds back - use `predict_at_u` instead.
 
         Expect "distance" to be slower, typically by more than the ordering
         itself costs. The exact solve is small at the default 4 control
         points (~0.4us per try, ~20ms over tries=50000) though it grows
         sharply with control points (~46us each at 8, ~284us at 10). The
-        larger effect is that "distance" applies min_control_point_x_gap as
-        a straight-line gap and skips the max_control_point_y_gap cap, so
-        many more candidates survive spacing and go on to be scored - which
-        is where the time actually goes. Raising min_control_point_x_gap
-        brings it back down.
+        larger effect is that the spacing changes above let many more
+        candidates survive and go on to be scored - which is where the time
+        actually goes. Raising min_control_point_x_gap brings it back down.
     fit_range : {"inliers", "data"}, default="inliers"
         How far the fitted curve (`curve_`) is linearly extended at each
         end. "inliers" extends only to cover the winning candidate's own
         inlier x-range, so outliers far away in x can't drag the curve's
         ends out. "data" extends to cover the full input x-range regardless
-        of which points ended up as inliers.
+        of which points ended up as inliers. Extending needs a well-defined
+        dy/dx at each end, so no extension happens at all under
+        ordering="distance" and only the default "inliers" is accepted there.
     seed : int, default=42
         Seed for the random control-point sampling, for reproducible fits.
 
@@ -100,7 +113,9 @@ class CardinalSplineRegressor:
         The winning candidate's control points.
     curve_ : list of (float, float)
         Sampled points along the fitted spline, x-ordered, including the
-        linear extension out to the data's own x-range.
+        linear extension out to the data's own x-range. Under
+        ordering="distance" the points follow the curve rather than x, and
+        no linear extension is applied.
     inliers_ : list of bool
         Per-input-point inlier mask against the winning curve, aligned
         with the `x`/`y` passed to `fit`.
@@ -181,6 +196,24 @@ class CardinalSplineRegressor:
         }
         if self.ordering not in ordering_by_name:
             raise ValueError(f"ordering must be one of {sorted(ordering_by_name)}, got {self.ordering!r}")
+
+        if self.ordering == "distance":
+            # "distance" ordering exists to fit curves that fold back in x.
+            # These options each assume a single y per x, so they are not just
+            # suboptimal here, they are wrong - refuse rather than fit
+            # something plausible-looking off a meaningless setting.
+            if self.distance_metric == "vertical":
+                raise ValueError(
+                    'distance_metric="vertical" measures y at a given x, which is undefined for '
+                    'a curve that folds back, and ordering="distance" exists to fit exactly those. '
+                    'Use distance_metric="perpendicular" (or "sampled").'
+                )
+            if self.fit_range != "inliers":
+                raise ValueError(
+                    f'fit_range={self.fit_range!r} has no meaning with ordering="distance": the '
+                    "fitted curve is not extended at all there, since a linear extension in x is "
+                    'undefined for a curve that folds back. Leave fit_range="inliers" (the default).'
+                )
 
         params = rsf.RansacFitParams()
         params.numberOfControlPoints = self.control_points

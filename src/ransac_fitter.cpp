@@ -83,15 +83,18 @@ std::pair<std::vector<bool>, int> scoreCandidate(const std::vector<Point2D>& dat
 // data's x-range.
 std::pair<double, double> getDataRange(const std::vector<Point2D>& data, const FitResult& best,
                                          const RansacFitParams& params, double dataXMin, double dataXMax) {
-    if (params.fitRange != FitRange::Inliers) {
+    if (params.fitRange == FitRange::Data) {
         return {dataXMin, dataXMax};
     }
-    std::vector<Point2D> inliers;
-    inliers.reserve(best.inlierCount);
-    for (size_t i = 0; i < data.size(); ++i) {
-        if (best.inlierMask[i]) inliers.push_back(data[i]);
+    else{
+        
+        std::vector<Point2D> inliers;
+        inliers.reserve(best.inlierCount);
+        for (size_t i = 0; i < data.size(); ++i) {
+            if (best.inlierMask[i]) inliers.push_back(data[i]);
+        }
+        return dataXRange(inliers);
     }
-    return dataXRange(inliers);
 }
 
 }  // namespace
