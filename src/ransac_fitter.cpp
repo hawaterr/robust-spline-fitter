@@ -98,7 +98,7 @@ std::pair<double, double> getDataRange(const std::vector<Point2D>& data, const F
 bool satisfiesSpacing(const std::vector<Point2D>& controlPoints, double minXGap, double maxYGap,
                       CurveType curveType) {
     for (size_t i = 0; i + 1 < controlPoints.size(); ++i) {
-        if (curveType == CurveType::Explicit) {
+        if (curveType == CurveType::Implicit) {
             // if (distance(controlPoints[i], controlPoints[i + 1]) <= minD) {
             //     return false;
             // } TODO: add
