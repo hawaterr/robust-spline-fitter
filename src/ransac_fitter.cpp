@@ -15,6 +15,9 @@ namespace rsf {
 
 namespace {
 
+
+constexpr int kMaxAttemptsPerTry = 100;
+
 // Draws numberOfControlPoints distinct indices from `indices` (via partial
 // Fisher-Yates on a copy) and returns the corresponding data points ordered
 // along the curve per `curveType`, ready to serve as spline control points.
@@ -41,14 +44,13 @@ std::vector<Point2D> sampleControlPoints(const std::vector<Point2D>& data, std::
 std::vector<Point2D> buildCandidateCurve(const std::vector<Point2D>& data, const std::vector<Point2D>& controlPoints,
                                          const RansacFitParams& params, double dataXMin, double dataXMax) {
     if (params.distanceMetric == DistanceMetric::Newton) {
-        return {}; // no need to build the whole curve if we use the newton method (optimisation)
+        return {};  // no need to build the whole curve if we use the newton method (optimisation)
     }
     std::vector<Point2D> curve = getCardinalSplineCurve(controlPoints, params.tension, params.samplesPerSegment);
 
     if (params.curveType == CurveType::Implicit) {
         return extendSplineEndsAlongTangent(curve, controlPoints, data, params.tension);
-    }
-    else {
+    } else {
         return extendSplineEndsLinearly(curve, dataXMin, dataXMax);
     }
 }
@@ -91,7 +93,7 @@ std::vector<Point2D> collectInliers(const std::vector<Point2D>& data, const FitR
 // Picks the x-range the final curve is extended to, in case the user wants to
 // only see the useful part of the best winning curve
 std::pair<double, double> getDataRange(const std::vector<Point2D>& data, const FitResult& best,
-                                         const RansacFitParams& params, double dataXMin, double dataXMax) {
+                                       const RansacFitParams& params, double dataXMin, double dataXMax) {
     if (params.fitRange == FitRange::DataXRange) {
         return {dataXMin, dataXMax};
     } else {
@@ -101,8 +103,7 @@ std::pair<double, double> getDataRange(const std::vector<Point2D>& data, const F
 
 }  // namespace
 
-bool satisfiesSpacing(const std::vector<Point2D>& controlPoints, double minXGap, double maxYGap,
-                      CurveType curveType) {
+bool satisfiesSpacing(const std::vector<Point2D>& controlPoints, double minXGap, double maxYGap, CurveType curveType) {
     for (size_t i = 0; i + 1 < controlPoints.size(); ++i) {
         if (curveType == CurveType::Implicit) {
             // if (distance(controlPoints[i], controlPoints[i + 1]) <= minD) {
@@ -128,15 +129,23 @@ FitResult fitRansac(const std::vector<Point2D>& data, const RansacFitParams& par
     std::vector<int> indices(data.size());
     std::iota(indices.begin(), indices.end(), 0);  // Cpp: fills indices with [0,1,2,...], .begin() returns an iterator
 
-    for (int attempt = 0; attempt < params.tries; ++attempt) {
+
+    const long long maxAttempts = static_cast<long long>(params.tries) * kMaxAttemptsPerTry;
+    int scored = 0;
+    long long attempts = 0;
+    while (scored < params.tries && attempts < maxAttempts) { // number of tries only counts when we have actually tried and not skiped due to bad control points
+        ++attempts;
         std::vector<Point2D> controlPoints =
             sampleControlPoints(data, indices, params.numberOfControlPoints, params.curveType, rng);
 
-        if (!satisfiesSpacing(controlPoints, params.minControlPointXGap, params.maxControlPointYGap, params.curveType)) {
+        if (!satisfiesSpacing(controlPoints, params.minControlPointXGap, params.maxControlPointYGap,
+                              params.curveType)) {
             continue;
         }
+        ++scored;
 
-        const std::vector<Point2D> candidateCurve = buildCandidateCurve(data, controlPoints, params, dataXMin, dataXMax);
+        const std::vector<Point2D> candidateCurve =
+            buildCandidateCurve(data, controlPoints, params, dataXMin, dataXMax);
         auto [inlierMask, inlierCount] = scoreCandidate(data, controlPoints, candidateCurve, params);
 
         if (inlierCount > best.inlierCount) {
@@ -146,11 +155,17 @@ FitResult fitRansac(const std::vector<Point2D>& data, const RansacFitParams& par
         }
     }
 
+    if (scored < params.tries) {
+        std::fprintf(stderr,
+                     "[fitRansac] warning: only %d/%d samples met the spacing constraints in %lld attempts; "
+                     "minControlPointXGap/maxControlPointYGap may be too tight for this data\n",
+                     scored, params.tries, attempts);
+    }
+
     if (best.inlierCount > 0) {
         // rebuild curve since user might only want till the last inlier
         best.curve = getCardinalSplineCurve(best.controlPoints, params.tension, params.samplesPerSegment);
         if (params.curveType == CurveType::Implicit) {
-
             best.curve = extendSplineEndsAlongTangent(best.curve, best.controlPoints, collectInliers(data, best),
                                                       params.tension);
         } else {
