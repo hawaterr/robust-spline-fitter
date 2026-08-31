@@ -6,3 +6,6 @@ dist/
 *.egg-info/
 wheelhouse/
 robust_spline_fitter/rsf.cpython-*.so
+random/
+diagnostics/
+.venv/

@@ -13,4 +13,24 @@ cmake --build "$repo_root/build"
 rsf_so="$(find "$repo_root/build" -maxdepth 1 -name 'rsf.cpython-*.so' | head -n1)"
 ln -sf "$rsf_so" "$repo_root/robust_spline_fitter/$(basename "$rsf_so")"
 
-PYTHONPATH="$repo_root${PYTHONPATH:+:$PYTHONPATH}" python3 "$repo_root/examples/example.py"
+# Tests, not examples/example.py: the example is for end users, the tests are
+# what tells a developer whether the build they just made still works.
+# Extra args are forwarded to pytest, e.g. ./run.sh --plot-failures
+#
+# Two deliberate bits of isolation here:
+#
+#   .venv/bin/python3 - used if it exists, so you don't have to remember to
+#   activate it. The system python3 has pytest 6.2.5, too old for the
+#   installed anyio (its plugin imports _pytest.scope, added in pytest 7).
+#   Only the test run switches interpreters; the build above stays on
+#   whatever python3 CMake configured against, so the .so keeps matching.
+#
+#   PYTHONPATH set to exactly $repo_root, NOT appended to the inherited one.
+#   Sourcing /opt/ros/humble puts its site-packages on PYTHONPATH, which
+#   auto-loads eight ROS pytest plugins (launch_testing, ament_*, ...) plus
+#   anyio into every run; launch_testing then dies importing yaml. PYTHONPATH
+#   also defeats venv isolation, so dropping it is what makes the venv stick.
+test_python="$repo_root/.venv/bin/python3"
+[ -x "$test_python" ] || test_python="python3"
+
+PYTHONPATH="$repo_root" "$test_python" -m pytest "$repo_root/tests" "$@"

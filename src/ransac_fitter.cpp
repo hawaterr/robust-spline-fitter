@@ -102,7 +102,7 @@ bool satisfiesSpacing(const std::vector<Point2D>& controlPoints, double minXGap,
             // if (distance(controlPoints[i], controlPoints[i + 1]) <= minD) {
             //     return false;
             // } TODO: add
-            return;
+            return true;
         }
         const double xGap = controlPoints[i + 1].x - controlPoints[i].x;
         const double yGap = std::abs(controlPoints[i + 1].y - controlPoints[i].y);

@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 from robust_spline_fitter import CardinalSplineRegressor
 
-DATA_CSV = Path(__file__).resolve().parent.parent / "data" / "vertical.csv"
+DATA_CSV = Path(__file__).resolve().parent.parent / "tests" / "data" / "implicit.csv"
 
 
 def main():
@@ -18,7 +18,7 @@ def main():
     model = CardinalSplineRegressor(
         control_points=4,
         tries=5000,
-        threshold=0.1,
+        threshold=3,
         tension=0.4,
         samples_per_segment=200,
         min_control_point_x_gap=1.0,
