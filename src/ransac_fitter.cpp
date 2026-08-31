@@ -15,7 +15,6 @@ namespace rsf {
 
 namespace {
 
-
 constexpr int kMaxAttemptsPerTry = 100;
 
 // Draws numberOfControlPoints distinct indices from `indices` (via partial
@@ -103,13 +102,19 @@ std::pair<double, double> getDataRange(const std::vector<Point2D>& data, const F
 
 }  // namespace
 
-bool satisfiesSpacing(const std::vector<Point2D>& controlPoints, double minXGap, double maxYGap, CurveType curveType) {
+bool satisfiesSpacing(const std::vector<Point2D>& controlPoints, double minXGap, double maxYGap, double minDGap,
+                      CurveType curveType) {
     for (size_t i = 0; i + 1 < controlPoints.size(); ++i) {
+        // Every comparison against a NaN constraint is false, so an unset
+        // constraint drops out on its own without needing to be checked for.
+        if (distance(controlPoints[i], controlPoints[i + 1]) <= minDGap) {
+            return false;
+        }
         if (curveType == CurveType::Implicit) {
-            // if (distance(controlPoints[i], controlPoints[i + 1]) <= minD) {
-            //     return false;
-            // } TODO: add
-            return true;
+            // The x/y pair assumes control points ordered along x, which an
+            // implicit curve's are not. The wrapper rejects them up front, so
+            // there is nothing left to check here.
+            continue;
         }
         const double xGap = controlPoints[i + 1].x - controlPoints[i].x;
         const double yGap = std::abs(controlPoints[i + 1].y - controlPoints[i].y);
@@ -129,17 +134,17 @@ FitResult fitRansac(const std::vector<Point2D>& data, const RansacFitParams& par
     std::vector<int> indices(data.size());
     std::iota(indices.begin(), indices.end(), 0);  // Cpp: fills indices with [0,1,2,...], .begin() returns an iterator
 
-
     const long long maxAttempts = static_cast<long long>(params.tries) * kMaxAttemptsPerTry;
     int scored = 0;
     long long attempts = 0;
-    while (scored < params.tries && attempts < maxAttempts) { // number of tries only counts when we have actually tried and not skiped due to bad control points
+    while (scored < params.tries && attempts < maxAttempts) {  // number of tries only counts when we have actually
+                                                               // tried and not skiped due to bad control points
         ++attempts;
         std::vector<Point2D> controlPoints =
             sampleControlPoints(data, indices, params.numberOfControlPoints, params.curveType, rng);
 
         if (!satisfiesSpacing(controlPoints, params.minControlPointXGap, params.maxControlPointYGap,
-                              params.curveType)) {
+                              params.minControlPointDGap, params.curveType)) {
             continue;
         }
         ++scored;
@@ -158,7 +163,7 @@ FitResult fitRansac(const std::vector<Point2D>& data, const RansacFitParams& par
     if (scored < params.tries) {
         std::fprintf(stderr,
                      "[fitRansac] warning: only %d/%d samples met the spacing constraints in %lld attempts; "
-                     "minControlPointXGap/maxControlPointYGap may be too tight for this data\n",
+                     "the control-point spacing constraints may be too tight for this data\n",
                      scored, params.tries, attempts);
     }
 

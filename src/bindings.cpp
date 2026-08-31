@@ -102,6 +102,7 @@ PYBIND11_MODULE(rsf, m) {  // so we say import rsf in python
         .def_readwrite("samplesPerSegment", &rsf::RansacFitParams::samplesPerSegment)
         .def_readwrite("minControlPointXGap", &rsf::RansacFitParams::minControlPointXGap)
         .def_readwrite("maxControlPointYGap", &rsf::RansacFitParams::maxControlPointYGap)
+        .def_readwrite("minControlPointDGap", &rsf::RansacFitParams::minControlPointDGap)
         .def_readwrite("distanceMetric", &rsf::RansacFitParams::distanceMetric)
         .def_readwrite("fitRange", &rsf::RansacFitParams::fitRange)
         .def_readwrite("curveType", &rsf::RansacFitParams::curveType);

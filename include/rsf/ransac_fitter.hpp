@@ -1,5 +1,6 @@
 #pragma once
 
+#include <limits>
 #include <random>
 #include <vector>
 
@@ -58,8 +59,9 @@ struct RansacFitParams {
     double tension = 0.5;
     double threshold = 0.2;
     int samplesPerSegment = 200;
-    double minControlPointXGap = 1.0;
-    double maxControlPointYGap = 2.0;
+    double minControlPointXGap = std::numeric_limits<double>::quiet_NaN();
+    double maxControlPointYGap = std::numeric_limits<double>::quiet_NaN();
+    double minControlPointDGap = std::numeric_limits<double>::quiet_NaN();
     DistanceMetric distanceMetric = DistanceMetric::Newton;
     FitRange fitRange = FitRange::InlierXRange;
     CurveType curveType = CurveType::Explicit;
@@ -73,11 +75,15 @@ struct FitResult {
 };
 
 // controlPoints must already be in curve order (whichever curve type produced
-// them). Under Explicit this checks a signed x gap and a y cap; under Implicit
-// the control points aren't x-ordered at all, so minXGap is instead applied as
-// a minimum straight-line gap between neighbours and the (x-directional) y cap
-// is skipped.
-bool satisfiesSpacing(const std::vector<Point2D>& controlPoints, double minXGap, double maxYGap,
+// them). Any constraint passed as NaN is skipped, so a candidate with no
+// constraints set is always accepted.
+//
+// minXGap is a *signed* x gap and maxYGap a y cap, both of which assume the
+// control points are ordered along x - true only under Explicit. minDGap is a
+// straight-line distance, which needs no ordering, so it is the one constraint
+// that also works under Implicit. Passing the x/y pair under Implicit is a
+// caller error the Python wrapper rejects before it gets here.
+bool satisfiesSpacing(const std::vector<Point2D>& controlPoints, double minXGap, double maxYGap, double minDGap,
                       CurveType curveType);
 
 // Robustly fits a cardinal spline to data via RANSAC: repeatedly samples

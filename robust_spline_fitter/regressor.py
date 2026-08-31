@@ -1,5 +1,5 @@
 """Python-friendly, sklearn-style wrapper around the compiled rsf extension."""
-from typing import List, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -41,19 +41,30 @@ class CardinalSplineRegressor:
     samples_per_segment : int, default=200
         How finely each spline segment is sampled internally. Higher is
         more accurate (better distance-to-curve estimates) but slower.
-    min_control_point_x_gap : float, default=1.0
+    min_control_point_x_gap : float, optional
         Reject any candidate where two adjacent (x-sorted) control points
         are within this x distance of each other. Avoids numerically
-        unstable, near-degenerate spline segments. Under
-        curve_type="implicit" the control points aren't x-ordered, so a
-        signed x gap is meaningless; this is applied as a minimum
-        straight-line gap between neighbours instead.
-    max_control_point_y_gap : float, default=2.0
+        unstable, near-degenerate spline segments. Only valid under
+        curve_type="explicit", since it is a signed gap that assumes the
+        control points run left to right.
+    max_control_point_y_gap : float, optional
         Reject any candidate where two adjacent (x-sorted) control points
         differ in y by more than this. Avoids wild swings between control
-        points that happen to land close together in x. Ignored entirely
-        under curve_type="implicit", where it would forbid exactly the
-        near-vertical segments that curve type exists to allow.
+        points that happen to land close together in x. Only valid under
+        curve_type="explicit", where it would otherwise forbid exactly the
+        near-vertical segments an implicit curve exists to allow.
+    min_control_point_d_gap : float, optional
+        Reject any candidate where two adjacent control points are within
+        this straight-line distance of each other. Carries no direction, so
+        unlike the two above it stays meaningful on a curve that folds back
+        or runs vertically - it is the only spacing constraint accepted
+        under curve_type="implicit".
+
+        The three constraints default to None, meaning unset: a fit with
+        none of them set applies no spacing filter at all. Because a
+        straight-line gap and an x/y gap are alternative ways to space
+        control points, min_control_point_d_gap cannot be combined with
+        either of the other two; `fit` raises ValueError if it is.
     distance_to_curve : {"newton", "vertical", "sampled"}, default="newton"
         Inlier calculation method: how a data point's distance to a
         candidate curve is measured for inlier scoring. "newton" is the
@@ -81,9 +92,10 @@ class CardinalSplineRegressor:
         single y per x: distance_to_curve="vertical" (undefined when one x
         has several y, so use "newton" or "sampled") and
         fit_range="data_x_range" (an implicit curve isn't laid out along x).
-        It also reinterprets min_control_point_x_gap and ignores
-        max_control_point_y_gap, as described above. Note that `predict` is
-        unavailable on a curve that folds back - use `predict_at_u` instead.
+        It also rejects min_control_point_x_gap and max_control_point_y_gap,
+        which assume x-ordered control points; space them with
+        min_control_point_d_gap instead. Note that `predict` is unavailable
+        on a curve that folds back - use `predict_at_u` instead.
 
         Expect "implicit" to be slower, typically by more than the ordering
         itself costs. The exact solve is small at the default 4 control
@@ -91,7 +103,7 @@ class CardinalSplineRegressor:
         sharply with control points (~46us each at 8, ~284us at 10). The
         larger effect is that the spacing changes above let many more
         candidates survive and go on to be scored - which is where the time
-        actually goes. Raising min_control_point_x_gap brings it back down.
+        actually goes. Raising min_control_point_d_gap brings it back down.
     fit_range : {"inlier_x_range", "data_x_range"}, default="inlier_x_range"
         How far the fitted curve (`curve_`) is linearly extended at each
         end. "inlier_x_range" extends only to cover the winning candidate's
@@ -137,8 +149,9 @@ class CardinalSplineRegressor:
         tries: int = 5000,
         threshold: float = 0.2,
         samples_per_segment: int = 200,
-        min_control_point_x_gap: float = 1.0,
-        max_control_point_y_gap: float = 2.0,
+        min_control_point_x_gap: Optional[float] = None,
+        max_control_point_y_gap: Optional[float] = None,
+        min_control_point_d_gap: Optional[float] = None,
         distance_to_curve: str = "newton",
         fit_range: str = "inlier_x_range",
         curve_type: str = "explicit",
@@ -151,6 +164,7 @@ class CardinalSplineRegressor:
         self.samples_per_segment = samples_per_segment
         self.min_control_point_x_gap = min_control_point_x_gap
         self.max_control_point_y_gap = max_control_point_y_gap
+        self.min_control_point_d_gap = min_control_point_d_gap
         self.distance_to_curve = distance_to_curve
         self.fit_range = fit_range
         self.curve_type = curve_type
@@ -197,11 +211,38 @@ class CardinalSplineRegressor:
         if self.curve_type not in curve_type_by_name:
             raise ValueError(f"curve_type must be one of {sorted(curve_type_by_name)}, got {self.curve_type!r}")
 
+        # Spacing constraints. The straight-line gap and the x/y pair are two
+        # ways of saying "keep control points apart", so allowing both at once
+        # would leave it ambiguous which one a rejected candidate failed;
+        # require the caller to pick one.
+        xy_given = [
+            name
+            for name, value in (
+                ("min_control_point_x_gap", self.min_control_point_x_gap),
+                ("max_control_point_y_gap", self.max_control_point_y_gap),
+            )
+            if value is not None
+        ]
+        if self.min_control_point_d_gap is not None and xy_given:
+            raise ValueError(
+                "min_control_point_d_gap cannot be combined with "
+                f"{' or '.join(xy_given)}: a straight-line gap and an x/y gap are "
+                "alternative ways to space control points, so set one or the other."
+            )
+
         if self.curve_type == "implicit":
             # An implicit curve can have several y at one x, so options that
             # assume a single y per x are not just suboptimal here, they are
             # wrong - refuse rather than fit something plausible-looking off
             # a meaningless setting.
+            if xy_given:
+                raise ValueError(
+                    f"{' and '.join(xy_given)} "
+                    f"{'assume' if len(xy_given) > 1 else 'assumes'} control points ordered "
+                    'along x, which is not the case under curve_type="implicit" (the curve may '
+                    "fold back or run vertically). Use min_control_point_d_gap, a straight-line "
+                    "gap, instead."
+                )
             if self.distance_to_curve == "vertical":
                 raise ValueError(
                     'distance_to_curve="vertical" measures y at a given x, which is undefined '
@@ -221,8 +262,12 @@ class CardinalSplineRegressor:
         params.threshold = self.threshold
         params.tension = self.tension
         params.samplesPerSegment = self.samples_per_segment
-        params.minControlPointXGap = self.min_control_point_x_gap
-        params.maxControlPointYGap = self.max_control_point_y_gap
+        # NaN is how the C++ side spells "constraint not set": every comparison
+        # against it is false, so it never rejects a candidate.
+        unset = float("nan")
+        params.minControlPointXGap = unset if self.min_control_point_x_gap is None else self.min_control_point_x_gap
+        params.maxControlPointYGap = unset if self.max_control_point_y_gap is None else self.max_control_point_y_gap
+        params.minControlPointDGap = unset if self.min_control_point_d_gap is None else self.min_control_point_d_gap
         params.distanceMetric = metric_by_name[self.distance_to_curve]
         params.fitRange = range_by_name[self.fit_range]
         params.curveType = curve_type_by_name[self.curve_type]
