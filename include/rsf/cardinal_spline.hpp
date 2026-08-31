@@ -48,4 +48,27 @@ Point2D evalCardinalSplineAtU(const std::vector<Point2D>& controlPoints, double 
 std::vector<Point2D> extendSplineEndsLinearly(const std::vector<Point2D>& curve, double xMin, double xMax,
                                               int samplesPerExtension = 200);
 
+// Extension for curves that may fold back in x, where "the end of the curve"
+// and "the end nearest xMin" are not the same thing. Each end continues along
+// the spline's analytic tangent there, in the direction the curve is actually
+// pointing as it leaves - the same outward rays
+// getClosestDistanceToSplineUsingNewton scores against, so the drawn curve and
+// the scored curve agree.
+//
+// Each extension stops at the furthest `inliers` point projected onto that
+// end's own outward direction, so it ends at the last inlier it actually runs
+// past. An x-range bound cannot express this on a folding curve: min/max x is
+// one box shared by both ends, and the x-extreme inlier may belong to the
+// opposite end of the curve.
+//
+// Kept separate from extendSplineEndsLinearly because that one steps along x
+// from each end outward, which silently reverses an extension whose tangent
+// points away from the bound it was aimed at. Under CurveType::Explicit
+// control points are sorted by x, so the tangents can only point outward and
+// the two agree; only folding curves need this.
+std::vector<Point2D> extendSplineEndsAlongTangent(const std::vector<Point2D>& curve,
+                                                  const std::vector<Point2D>& controlPoints,
+                                                  const std::vector<Point2D>& inliers, double tension,
+                                                  int samplesPerExtension = 200);
+
 }  // namespace rsf

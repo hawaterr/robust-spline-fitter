@@ -1,8 +1,8 @@
 # Roadmap
 
 PRIORITY I
-- unit tests
 - statisfies spacing: min x and y only in explicit, implicit only min d? asserts?
+- newton solver seems to have a problem
 - parallelize
 - Local refinement pass after RANSAC: once you have inliers, do a least-squares polish of control points (currently it's pure random search — a final gradient/Nelder-Mead refit on the winning inlier set would likely improve fit quality for free).  win by best inliers or best score, both options, maybe not needed since there is a refinement pass after inlier pass.
 - more satisfies-spacing constraints

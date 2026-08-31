@@ -142,4 +142,64 @@ std::vector<Point2D> extendSplineEndsLinearly(const std::vector<Point2D>& curve,
     return extended;
 }
 
+// extends till the last inlier
+std::vector<Point2D> extendSplineEndsAlongTangent(const std::vector<Point2D>& curve,
+                                                  const std::vector<Point2D>& controlPoints,
+                                                  const std::vector<Point2D>& inliers, double tension,
+                                                  int samplesPerExtension) {
+    const int n = static_cast<int>(controlPoints.size());
+    if (curve.size() < 2 || n < 2 || inliers.empty()) {
+        return curve;
+    }
+
+    const Point2D startTangent =
+        evalCardinalSegmentDerivative(selectControlPoint(controlPoints, -1), controlPoints[0], controlPoints[1],
+                                      selectControlPoint(controlPoints, 2), 0.0, tension) *
+        -1.0;
+    const Point2D endTangent =
+        evalCardinalSegmentDerivative(selectControlPoint(controlPoints, n - 3), controlPoints[n - 2],
+                                      controlPoints[n - 1], selectControlPoint(controlPoints, n), 1.0, tension);
+
+    const auto travel = [&](const Point2D& from, const Point2D& dir) { // how far do inliers reach in this direction
+        const double length = std::hypot(dir.x, dir.y);
+        if (length <= 0.0) {
+            return 0.0;
+        }
+        const Point2D unit = {dir.x / length, dir.y / length};
+        double furthest = 0.0;
+        for (const Point2D& p : inliers) {
+            furthest = std::max(furthest, (p.x - from.x) * unit.x + (p.y - from.y) * unit.y);
+        }
+        return furthest;
+    };
+
+    std::vector<Point2D> extended;
+    extended.reserve(curve.size() + 2 * samplesPerExtension);
+
+    const Point2D& first = curve.front();
+    const Point2D& last = curve.back();
+    const double startLength = travel(first, startTangent);
+    const double endLength = travel(last, endTangent);
+
+    if (startLength > 0.0) {
+        const double norm = std::hypot(startTangent.x, startTangent.y);
+        for (int i = samplesPerExtension - 1; i >= 0; --i) {
+            const double s = startLength * static_cast<double>(i) / (samplesPerExtension - 1);
+            extended.push_back({first.x + startTangent.x / norm * s, first.y + startTangent.y / norm * s});
+        }
+    }
+
+    extended.insert(extended.end(), curve.begin(), curve.end());
+
+    if (endLength > 0.0) {
+        const double norm = std::hypot(endTangent.x, endTangent.y);
+        for (int i = 0; i < samplesPerExtension; ++i) {
+            const double s = endLength * static_cast<double>(i) / (samplesPerExtension - 1);
+            extended.push_back({last.x + endTangent.x / norm * s, last.y + endTangent.y / norm * s});
+        }
+    }
+
+    return extended;
+}
+
 }  // namespace rsf

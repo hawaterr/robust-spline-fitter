@@ -38,16 +38,20 @@ std::vector<Point2D> sampleControlPoints(const std::vector<Point2D>& data, std::
     return controlPoints;
 }
 
-
-std::vector<Point2D> buildCandidateCurve(const std::vector<Point2D>& controlPoints, const RansacFitParams& params,
-                                         double dataXMin, double dataXMax) {
+std::vector<Point2D> buildCandidateCurve(const std::vector<Point2D>& data, const std::vector<Point2D>& controlPoints,
+                                         const RansacFitParams& params, double dataXMin, double dataXMax) {
     if (params.distanceMetric == DistanceMetric::Newton) {
         return {}; // no need to build the whole curve if we use the newton method (optimisation)
     }
     std::vector<Point2D> curve = getCardinalSplineCurve(controlPoints, params.tension, params.samplesPerSegment);
-    return extendSplineEndsLinearly(curve, dataXMin, dataXMax);
-}
 
+    if (params.curveType == CurveType::Implicit) {
+        return extendSplineEndsAlongTangent(curve, controlPoints, data, params.tension);
+    }
+    else {
+        return extendSplineEndsLinearly(curve, dataXMin, dataXMax);
+    }
+}
 
 std::pair<std::vector<bool>, int> scoreCandidate(const std::vector<Point2D>& data,
                                                  const std::vector<Point2D>& controlPoints,
@@ -75,21 +79,23 @@ std::pair<std::vector<bool>, int> scoreCandidate(const std::vector<Point2D>& dat
     return {std::move(inlierMask), inlierCount};
 }
 
-// Picks the x-range the final curve is extended to, in case the user wants to 
+std::vector<Point2D> collectInliers(const std::vector<Point2D>& data, const FitResult& best) {
+    std::vector<Point2D> inliers;
+    inliers.reserve(best.inlierCount);
+    for (size_t i = 0; i < data.size(); ++i) {
+        if (best.inlierMask[i]) inliers.push_back(data[i]);
+    }
+    return inliers;
+}
+
+// Picks the x-range the final curve is extended to, in case the user wants to
 // only see the useful part of the best winning curve
 std::pair<double, double> getDataRange(const std::vector<Point2D>& data, const FitResult& best,
                                          const RansacFitParams& params, double dataXMin, double dataXMax) {
     if (params.fitRange == FitRange::DataXRange) {
         return {dataXMin, dataXMax};
-    }
-    else{
-        
-        std::vector<Point2D> inliers;
-        inliers.reserve(best.inlierCount);
-        for (size_t i = 0; i < data.size(); ++i) {
-            if (best.inlierMask[i]) inliers.push_back(data[i]);
-        }
-        return dataXRange(inliers);
+    } else {
+        return dataXRange(collectInliers(data, best));
     }
 }
 
@@ -130,7 +136,7 @@ FitResult fitRansac(const std::vector<Point2D>& data, const RansacFitParams& par
             continue;
         }
 
-        const std::vector<Point2D> candidateCurve = buildCandidateCurve(controlPoints, params, dataXMin, dataXMax);
+        const std::vector<Point2D> candidateCurve = buildCandidateCurve(data, controlPoints, params, dataXMin, dataXMax);
         auto [inlierMask, inlierCount] = scoreCandidate(data, controlPoints, candidateCurve, params);
 
         if (inlierCount > best.inlierCount) {
@@ -141,9 +147,16 @@ FitResult fitRansac(const std::vector<Point2D>& data, const RansacFitParams& par
     }
 
     if (best.inlierCount > 0) {
-        const auto [extendXMin, extendXMax] = getDataRange(data, best, params, dataXMin, dataXMax);
+        // rebuild curve since user might only want till the last inlier
         best.curve = getCardinalSplineCurve(best.controlPoints, params.tension, params.samplesPerSegment);
-        best.curve = extendSplineEndsLinearly(best.curve, extendXMin, extendXMax);
+        if (params.curveType == CurveType::Implicit) {
+
+            best.curve = extendSplineEndsAlongTangent(best.curve, best.controlPoints, collectInliers(data, best),
+                                                      params.tension);
+        } else {
+            const auto [extendXMin, extendXMax] = getDataRange(data, best, params, dataXMin, dataXMax);
+            best.curve = extendSplineEndsLinearly(best.curve, extendXMin, extendXMax);
+        }
     }
 
     const auto t1 = std::chrono::steady_clock::now();
