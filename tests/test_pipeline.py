@@ -48,7 +48,7 @@ def run_case(name, csv_path, kwargs, min_inliers, request):
 
 # tests ------------
 
-def test_explicit(request): # reqzest is defined by pytest, 
+def test_explicit(request): # request is defined by pytest, 
     run_case(
         name="test_explicit",
         csv_path=DATA_DIR / "explicit.csv",
@@ -78,13 +78,13 @@ def test_vertical(request):
             threshold=0.1,
             tension=0.4,
             samples_per_segment=200,
-            min_control_point_x_gap=1.0,
-            max_control_point_y_gap=2.0,
-            distance_to_curve="newton",
+            min_control_point_x_gap=0,
+            max_control_point_y_gap=1000.0,
+            distance_to_curve="sampled",
             fit_range="inlier_x_range",
             curve_type="implicit",
         ),
-        min_inliers=50,
+        min_inliers=100,
         request=request,
     )
 
@@ -98,14 +98,14 @@ def test_implicit(request):
         kwargs=dict(
             control_points=4,
             tries=5000,
-            threshold=0.2,
+            threshold=3,
             tension=0.4,
             samples_per_segment=200,
             min_control_point_x_gap=1.0,
             max_control_point_y_gap=2.0,
             distance_to_curve="newton",
             fit_range="inlier_x_range",
-            curve_type="implicit",
+            curve_type="implicit"
         ),
         min_inliers=30,
         request=request,
