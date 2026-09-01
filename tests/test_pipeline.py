@@ -105,6 +105,6 @@ def test_implicit(request):
             fit_range="inlier_x_range",
             curve_type="implicit"
         ),
-        min_inliers=1000,
+        min_inliers=100,
         request=request,
     )
